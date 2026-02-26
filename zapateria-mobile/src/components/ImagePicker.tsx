@@ -24,30 +24,29 @@ export const ImagePickerComponent: React.FC<ImagePickerComponentProps> = ({
       Alert.alert("Éxito", "Imagen subida exitosamente");
     } catch (error: any) {
       console.error("Error uploading image:", error);
-      
+
       let errorMessage = "No se pudo subir la imagen. Intenta de nuevo.";
       if (error.message) {
         errorMessage = error.message;
       }
-      
-      Alert.alert(
-        "Error",
-        errorMessage
-      );
+
+      Alert.alert("Error", errorMessage);
     } finally {
       setUploading(false);
     }
   };
 
   const requestPermissions = async () => {
-    const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-    const { status: mediaStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (cameraStatus !== 'granted' || mediaStatus !== 'granted') {
+    const { status: cameraStatus } =
+      await ImagePicker.requestCameraPermissionsAsync();
+    const { status: mediaStatus } =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (cameraStatus !== "granted" || mediaStatus !== "granted") {
       Alert.alert(
         "Permisos requeridos",
         "Necesitamos permisos de cámara y galería para esta funcionalidad.",
-        [{ text: "OK" }]
+        [{ text: "OK" }],
       );
       return false;
     }
@@ -55,24 +54,20 @@ export const ImagePickerComponent: React.FC<ImagePickerComponentProps> = ({
   };
 
   const showImagePicker = () => {
-    Alert.alert(
-      "Seleccionar Imagen",
-      "¿De dónde quieres obtener la imagen?",
-      [
-        {
-          text: "Cancelar",
-          style: "cancel",
-        },
-        {
-          text: "Cámara",
-          onPress: openCamera,
-        },
-        {
-          text: "Galería",
-          onPress: openGallery,
-        },
-      ]
-    );
+    Alert.alert("Seleccionar Imagen", "¿De dónde quieres obtener la imagen?", [
+      {
+        text: "Cancelar",
+        style: "cancel",
+      },
+      {
+        text: "Cámara",
+        onPress: openCamera,
+      },
+      {
+        text: "Galería",
+        onPress: openGallery,
+      },
+    ]);
   };
 
   const openCamera = async () => {
@@ -81,9 +76,8 @@ export const ImagePickerComponent: React.FC<ImagePickerComponentProps> = ({
 
     try {
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: 'images',
-        allowsEditing: true,
-        aspect: [1, 1], // Aspecto cuadrado para zapatos
+        mediaTypes: "images",
+        allowsEditing: false,
         quality: 0.8,
       });
 
@@ -101,9 +95,8 @@ export const ImagePickerComponent: React.FC<ImagePickerComponentProps> = ({
 
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: 'images',
-        allowsEditing: true,
-        aspect: [1, 1], // Aspecto cuadrado para zapatos
+        mediaTypes: "images",
+        allowsEditing: false,
         quality: 0.8,
       });
 
@@ -126,10 +119,10 @@ export const ImagePickerComponent: React.FC<ImagePickerComponentProps> = ({
         disabledStyle={{ backgroundColor: "$gray6" }}
       >
         <XStack alignItems="center" gap="$2">
-          <Ionicons 
-            name={uploading ? "cloud-upload-outline" : "camera-outline"} 
-            size={16} 
-            color="white" 
+          <Ionicons
+            name={uploading ? "cloud-upload-outline" : "camera-outline"}
+            size={16}
+            color="white"
           />
           <Text color="$white1" fontWeight="600">
             {uploading ? "Subiendo imagen..." : "Seleccionar Imagen"}
