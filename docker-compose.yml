@@ -1,0 +1,55 @@
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: zapateria_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zapateria
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - zapateria_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d zapateria"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./zapateria-backend
+      dockerfile: Dockerfile
+    container_name: zapateria_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: zapateria
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+    ports:
+      - "3000:3000"
+    volumes:
+      - uploads_data:/app/uploads
+    networks:
+      - zapateria_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    driver: local
+  uploads_data:
+    driver: local
+
+networks:
+  zapateria_network:
+    driver: bridge
