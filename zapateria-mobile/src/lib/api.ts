@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Para desarrollo móvil, usar la IP de la máquina en lugar de localhost
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.145:3000';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.0.200:3000';
 
 export const api = axios.create({
   baseURL: API_URL,
