@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { YStack, Button, XStack, Text } from "tamagui";
 import { Ionicons } from "@expo/vector-icons";
 import { uploadService } from "../services/upload.service";
@@ -15,6 +16,20 @@ export const ImagePickerComponent: React.FC<ImagePickerComponentProps> = ({
   disabled = false,
 }) => {
   const [uploading, setUploading] = useState(false);
+
+  const processImage = async (uri: string) => {
+    try {
+      const manipResult = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 1024 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+      );
+      return manipResult.uri;
+    } catch (error) {
+      console.error("Error processing image:", error);
+      return uri;
+    }
+  };
 
   const uploadImage = async (imageUri: string) => {
     try {
@@ -81,14 +96,22 @@ export const ImagePickerComponent: React.FC<ImagePickerComponentProps> = ({
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: "images",
         allowsEditing: false,
-        quality: 0.8,
+        quality: 0.7,
       });
 
       if (!result.canceled && result.assets[0]) {
-        await uploadImage(result.assets[0].uri);
+        // Pequeño delay para permitir que la UI se actualice y liberar memoria
+        setTimeout(async () => {
+          const processedUri = await processImage(result.assets[0].uri);
+          await uploadImage(processedUri);
+        }, 500);
       }
     } catch (error) {
-      Alert.alert("Error", "No se pudo acceder a la cámara");
+      console.error("Camera error:", error);
+      Alert.alert(
+        "Error",
+        "No se pudo acceder a la cámara o la aplicación se cerró inesperadamente.",
+      );
     }
   };
 
@@ -100,13 +123,17 @@ export const ImagePickerComponent: React.FC<ImagePickerComponentProps> = ({
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: "images",
         allowsEditing: false,
-        quality: 0.8,
+        quality: 0.7,
       });
 
       if (!result.canceled && result.assets[0]) {
-        await uploadImage(result.assets[0].uri);
+        setTimeout(async () => {
+          const processedUri = await processImage(result.assets[0].uri);
+          await uploadImage(processedUri);
+        }, 500);
       }
     } catch (error) {
+      console.error("Gallery error:", error);
       Alert.alert("Error", "No se pudo acceder a la galería");
     }
   };

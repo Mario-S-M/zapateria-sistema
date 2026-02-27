@@ -20,6 +20,7 @@
     "axios": "^1.12.2",
     "expo": "~54.0.33",
     "expo-camera": "~17.0.10",
+    "expo-image-manipulator": "^55.0.9",
     "expo-image-picker": "~17.0.10",
     "expo-status-bar": "~3.0.9",
     "jsbarcode": "^3.12.1",
