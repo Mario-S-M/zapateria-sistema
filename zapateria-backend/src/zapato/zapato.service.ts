@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Zapato } from '../entities/zapato.entity';
@@ -37,8 +41,19 @@ export class ZapatoService {
     });
   }
 
-  async create(createZapatoDto: CreateZapatoDto): Promise<Zapato | null> {
-    const { colorIds, categoriaId, inversionistaId, ...zapatoData } = createZapatoDto;
+  async create(createZapatoDto: CreateZapatoDto): Promise<Zapato> {
+    const { codigoBarras } = createZapatoDto;
+
+    const existingZapato = await this.zapatoRepository.findOne({
+      where: { codigoBarras },
+    });
+
+    if (existingZapato) {
+      throw new BadRequestException('El código de barras ya existe');
+    }
+
+    const { colorIds, categoriaId, inversionistaId, ...zapatoData } =
+      createZapatoDto;
 
     const zapato = this.zapatoRepository.create({
       ...zapatoData,
@@ -47,20 +62,30 @@ export class ZapatoService {
     });
     const savedZapato = await this.zapatoRepository.save(zapato);
 
-    const zapatoColores = colorIds.map((colorId) =>
-      this.zapatoColorRepository.create({
-        zapatoId: savedZapato.id,
-        colorId,
-      }),
-    );
+    if (colorIds && colorIds.length > 0) {
+      const zapatoColores = colorIds.map((colorId) =>
+        this.zapatoColorRepository.create({
+          zapatoId: savedZapato.id,
+          colorId,
+        }),
+      );
 
-    await this.zapatoColorRepository.save(zapatoColores);
+      await this.zapatoColorRepository.save(zapatoColores);
+    }
 
-    return this.findOne(savedZapato.id);
+    const createdZapato = await this.findOne(savedZapato.id);
+    if (!createdZapato) {
+      throw new BadRequestException('Error al crear el zapato');
+    }
+    return createdZapato;
   }
 
-  async update(id: string, updateZapatoDto: UpdateZapatoDto): Promise<Zapato | null> {
-    const { colorIds, categoriaId, inversionistaId, ...zapatoData } = updateZapatoDto;
+  async update(
+    id: string,
+    updateZapatoDto: UpdateZapatoDto,
+  ): Promise<Zapato | null> {
+    const { colorIds, categoriaId, inversionistaId, ...zapatoData } =
+      updateZapatoDto;
 
     const updateData = {
       ...zapatoData,
@@ -91,10 +116,10 @@ export class ZapatoService {
   async remove(id: string): Promise<void> {
     try {
       // Obtener el zapato para eliminar la imagen
-      const zapato = await this.zapatoRepository.findOne({ 
-        where: { id }
+      const zapato = await this.zapatoRepository.findOne({
+        where: { id },
       });
-      
+
       if (!zapato) {
         throw new NotFoundException(`Zapato con ID ${id} no encontrado`);
       }
@@ -102,17 +127,20 @@ export class ZapatoService {
       // Las ventas son registros históricos, no impedimos la eliminación del zapato
       // Los VentaItems mantendrán la referencia al zapatoId pero sin la relación activa
 
-      console.log(`Eliminando zapato ID: ${id}`, zapato.foto ? `con foto: ${zapato.foto}` : 'sin foto');
-      
+      console.log(
+        `Eliminando zapato ID: ${id}`,
+        zapato.foto ? `con foto: ${zapato.foto}` : 'sin foto',
+      );
+
       // Eliminar relaciones de colores primero
       await this.zapatoColorRepository.delete({ zapatoId: id });
       console.log(`Colores del zapato ${id} eliminados`);
-      
+
       // Eliminar el zapato de la base de datos
       // La configuración onDelete: 'SET NULL' en VentaItem manejará automáticamente las referencias
       await this.zapatoRepository.delete(id);
       console.log(`Zapato ${id} eliminado de la base de datos`);
-      
+
       // Luego intentar eliminar la imagen (si falla, no afecta la eliminación del zapato)
       if (zapato.foto) {
         try {
@@ -120,7 +148,10 @@ export class ZapatoService {
           await this.uploadService.deleteZapatoImage(zapato.foto);
           console.log(`Imagen eliminada exitosamente`);
         } catch (imageError) {
-          console.error('Error al eliminar imagen, pero zapato eliminado exitosamente:', imageError);
+          console.error(
+            'Error al eliminar imagen, pero zapato eliminado exitosamente:',
+            imageError,
+          );
         }
       } else {
         console.log('No hay imagen para eliminar');

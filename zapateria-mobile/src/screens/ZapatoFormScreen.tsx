@@ -327,12 +327,15 @@ export default function ZapatoFormScreen() {
             <YStack gap="$2">
               <Text fontWeight="bold">Foto del Zapato *</Text>
               <ImagePickerComponent
-                onImageSelected={setFoto}
+                onImageSelected={(uri) => {
+                  console.log("📸 Imagen seleccionada en ZapatoForm:", uri);
+                  setFoto(uri);
+                }}
                 disabled={loading}
               />
               {foto ? (
                 <Text fontSize="$2" color="$green10">
-                  ✓ Imagen seleccionada
+                  ✓ Imagen seleccionada: {foto.split('/').pop()}
                 </Text>
               ) : null}
             </YStack>

@@ -26,10 +26,13 @@ export const ImagePickerComponent: React.FC<ImagePickerComponentProps> = ({
       console.error("Error uploading image:", error);
 
       let errorMessage = "No se pudo subir la imagen. Intenta de nuevo.";
-      if (error.message) {
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
         errorMessage = error.message;
       }
 
+      console.error("Upload error details:", JSON.stringify(error, null, 2));
       Alert.alert("Error", errorMessage);
     } finally {
       setUploading(false);
