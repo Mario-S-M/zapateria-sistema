@@ -3,7 +3,7 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-ENV NODE_OPTIONS="--max-old-space-size=512"
+RUN npm install -g npm@9
 
 COPY package*.json ./
 
@@ -18,7 +18,7 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-ENV NODE_OPTIONS="--max-old-space-size=512"
+RUN npm install -g npm@9
 
 COPY package*.json ./
 
