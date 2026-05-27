@@ -12,10 +12,8 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'zapateria-env-file', variable: 'ENV_FILE')]) {
                     sh '''
-                        cp $ENV_FILE .env
-                        docker compose down --remove-orphans
-                        docker compose up -d --build
-                        rm -f .env
+                        docker compose --env-file "$ENV_FILE" down --remove-orphans
+                        docker compose --env-file "$ENV_FILE" up -d --build
                     '''
                 }
             }
@@ -23,12 +21,14 @@ pipeline {
 
         stage('Health Check') {
             steps {
-                sh '''
-                    echo "Esperando que el backend levante..."
-                    sleep 15
-                    docker compose ps
-                    docker compose logs --tail=20 backend
-                '''
+                withCredentials([file(credentialsId: 'zapateria-env-file', variable: 'ENV_FILE')]) {
+                    sh '''
+                        echo "Esperando que el backend levante..."
+                        sleep 15
+                        docker compose --env-file "$ENV_FILE" ps
+                        docker compose --env-file "$ENV_FILE" logs --tail=20 backend
+                    '''
+                }
             }
         }
     }
@@ -38,7 +38,9 @@ pipeline {
             echo "Deploy exitoso en rama ${env.BRANCH_NAME}"
         }
         failure {
-            sh 'docker compose logs --tail=50 || true'
+            withCredentials([file(credentialsId: 'zapateria-env-file', variable: 'ENV_FILE')]) {
+                sh 'docker compose --env-file "$ENV_FILE" logs --tail=50 || true'
+            }
             echo "Deploy fallido. Revisa los logs arriba."
         }
     }
