@@ -2,6 +2,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+RUN npm install -g npm@9 --force
+
 COPY package*.json ./
 RUN npm ci
 
