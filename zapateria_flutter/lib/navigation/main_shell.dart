@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:zapateria_flutter/screens/zapatos_screen.dart';
 import 'package:zapateria_flutter/screens/ventas_screen.dart';
@@ -23,8 +24,54 @@ class _MainShellState extends State<MainShell> {
     CierreCajaScreen(),
   ];
 
+  static const _icons = [
+    Icons.inventory_2,
+    Icons.point_of_sale,
+    Icons.shopping_cart,
+    Icons.qr_code_scanner,
+    Icons.receipt_long,
+  ];
+
+  static const _labels = [
+    'Zapatos',
+    'Ventas',
+    'Carrito',
+    'Escanear',
+    'Cierre',
+  ];
+
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) {
+      return Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              selectedIndex: _currentIndex,
+              onDestinationSelected: (i) => setState(() => _currentIndex = i),
+              extended: true,
+              minExtendedWidth: 180,
+              selectedIconTheme: IconThemeData(color: Theme.of(context).colorScheme.primary),
+              destinations: List.generate(
+                _icons.length,
+                (i) => NavigationRailDestination(
+                  icon: Icon(_icons[i]),
+                  label: Text(_labels[i]),
+                ),
+              ),
+            ),
+            const VerticalDivider(thickness: 1, width: 1),
+            Expanded(
+              child: IndexedStack(
+                index: _currentIndex,
+                children: _pages,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
@@ -36,13 +83,10 @@ class _MainShellState extends State<MainShell> {
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Theme.of(context).colorScheme.primary,
         unselectedItemColor: Theme.of(context).disabledColor,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.inventory_2), label: 'Zapatos'),
-          BottomNavigationBarItem(icon: Icon(Icons.point_of_sale), label: 'Ventas'),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'Carrito'),
-          BottomNavigationBarItem(icon: Icon(Icons.qr_code_scanner), label: 'Escanear'),
-          BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'Cierre'),
-        ],
+        items: List.generate(
+          _icons.length,
+          (i) => BottomNavigationBarItem(icon: Icon(_icons[i]), label: _labels[i]),
+        ),
       ),
     );
   }
