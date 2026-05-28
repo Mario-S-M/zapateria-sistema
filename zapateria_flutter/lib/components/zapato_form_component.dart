@@ -523,7 +523,7 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
           child: InversionistaForm(
             onSave: (inv) async {
               await _loadData();
-              setState(() => _selectedInversionistaId = inv.id);
+              setState(() => _selectedInversionistaId = inv['id']);
               if (context.mounted) Navigator.pop(ctx);
             },
             onCancel: () => Navigator.pop(ctx),
