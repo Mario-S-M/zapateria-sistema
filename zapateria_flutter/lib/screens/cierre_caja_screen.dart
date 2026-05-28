@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:zapateria_flutter/models/models.dart';
@@ -62,13 +63,25 @@ class _CierreCajaScreenState extends State<CierreCajaScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    Widget body = _loading
+        ? const Center(child: CircularProgressIndicator())
+        : _diaSeleccionado != null
+            ? _buildDiaSelected(theme)
+            : _buildNoSelection(theme);
+
+    if (kIsWeb) {
+      body = Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: body,
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Cierre de Caja')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _diaSeleccionado != null
-              ? _buildDiaSelected(theme)
-              : _buildNoSelection(theme),
+      body: body,
     );
   }
 
@@ -76,50 +89,100 @@ class _CierreCajaScreenState extends State<CierreCajaScreen> {
     return RefreshIndicator(
       onRefresh: () => _loadReportes(_fechaSeleccionada),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(_formatDate(_diaSeleccionado!.fecha), style: theme.textTheme.titleLarge),
-                        IconButton(
-                          icon: const Icon(Icons.calendar_today),
+                        Expanded(
+                          child: Text(
+                            _formatDate(_diaSeleccionado!.fecha),
+                            style: theme.textTheme.titleLarge,
+                          ),
+                        ),
+                        OutlinedButton.icon(
                           onPressed: _pickDate,
+                          icon: const Icon(Icons.calendar_today, size: 16),
+                          label: const Text('Cambiar día'),
                         ),
                       ],
                     ),
-                    const Divider(),
+                    const Divider(height: 24),
                     Text('Total del día', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600)),
-                    Text('\$${formatPrice(_diaSeleccionado!.totalDia)}', style: theme.textTheme.headlineMedium?.copyWith(color: Colors.green.shade700)),
+                    Text(
+                      '\$${formatPrice(_diaSeleccionado!.totalDia)}',
+                      style: theme.textTheme.headlineMedium?.copyWith(color: Colors.green.shade700, fontWeight: FontWeight.bold),
+                    ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Text('Desglose por inversionista', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
-            ..._diaSeleccionado!.inversionistas.map((inv) => Card(
-                  margin: const EdgeInsets.only(bottom: 4),
-                  child: ListTile(
-                    title: Text(inv.nombre, style: theme.textTheme.titleMedium),
-                    subtitle: Text('${inv.totalItems} artículo${inv.totalItems == 1 ? '' : 's'}'),
-                    trailing: Text('\$${formatPrice(inv.total)}', style: theme.textTheme.titleMedium?.copyWith(color: Colors.green.shade700)),
-                  ),
-                )),
+            if (kIsWeb)
+              _buildWebDesglose(theme)
+            else
+              ..._diaSeleccionado!.inversionistas.map((inv) => Card(
+                    margin: const EdgeInsets.only(bottom: 4),
+                    child: ListTile(
+                      title: Text(inv.nombre, style: theme.textTheme.titleMedium),
+                      subtitle: Text('${inv.totalItems} artículo${inv.totalItems == 1 ? '' : 's'}'),
+                      trailing: Text('\$${formatPrice(inv.total)}', style: theme.textTheme.titleMedium?.copyWith(color: Colors.green.shade700)),
+                    ),
+                  )),
+            const SizedBox(height: 8),
             TextButton(
               onPressed: () => setState(() => _diaSeleccionado = null),
               child: const Text('Limpiar selección'),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildWebDesglose(ThemeData theme) {
+    final invs = _diaSeleccionado!.inversionistas;
+    return Card(
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            ),
+            child: Row(
+              children: [
+                Expanded(flex: 3, child: Text('Inversionista', style: theme.textTheme.labelLarge)),
+                Expanded(child: Text('Artículos', style: theme.textTheme.labelLarge, textAlign: TextAlign.center)),
+                Expanded(child: Text('Total', style: theme.textTheme.labelLarge, textAlign: TextAlign.end)),
+              ],
+            ),
+          ),
+          ...invs.map((inv) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: theme.dividerColor, width: 0.5)),
+            ),
+            child: Row(
+              children: [
+                Expanded(flex: 3, child: Text(inv.nombre, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500))),
+                Expanded(child: Text('${inv.totalItems}', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium)),
+                Expanded(child: Text('\$${formatPrice(inv.total)}', textAlign: TextAlign.end, style: theme.textTheme.bodyMedium?.copyWith(color: Colors.green.shade700, fontWeight: FontWeight.w600))),
+              ],
+            ),
+          )),
+        ],
       ),
     );
   }
@@ -132,7 +195,7 @@ class _CierreCajaScreenState extends State<CierreCajaScreen> {
           Icon(Icons.calendar_month, size: 64, color: theme.disabledColor),
           const SizedBox(height: 16),
           Text('Selecciona un día para ver el reporte', style: theme.textTheme.bodyLarge, textAlign: TextAlign.center),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           ElevatedButton.icon(
             onPressed: _pickDate,
             icon: const Icon(Icons.calendar_today),

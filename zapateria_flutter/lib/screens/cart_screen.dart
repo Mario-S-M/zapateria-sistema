@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:zapateria_flutter/models/models.dart';
@@ -17,7 +18,6 @@ class CartScreen extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El carrito está vacío')));
       return;
     }
-
     try {
       final folio = 'V-${DateTime.now().millisecondsSinceEpoch}';
       await ventaService.create(
@@ -30,7 +30,6 @@ class CartScreen extends StatelessWidget {
           precioUnitario: i.precioUnitario,
         )).toList(),
       );
-
       cart.clearCart();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Venta registrada exitosamente')));
@@ -47,76 +46,208 @@ class CartScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final cart = context.watch<CartProvider>();
 
+    if (cart.items.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Carrito de Compras')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.shopping_basket, size: 64, color: theme.disabledColor),
+              const SizedBox(height: 16),
+              Text('El carrito está vacío', style: theme.textTheme.bodyLarge),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Carrito de Compras')),
-      body: cart.items.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.shopping_basket, size: 64, color: theme.disabledColor),
-                  const SizedBox(height: 16),
-                  Text('El carrito está vacío', style: theme.textTheme.bodyLarge),
-                ],
-              ),
-            )
-          : Column(
-              children: [
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: cart.items.length,
-                    itemBuilder: (context, index) {
-                      final item = cart.items[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          leading: item.zapato.foto != null
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(item.zapato.foto!, width: 50, height: 50, fit: BoxFit.cover),
-                                )
-                              : Container(
-                                  width: 50,
-                                  height: 50,
-                                  decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(8)),
-                                  child: const Icon(Icons.category, size: 24),
-                                ),
-                          title: Text(item.zapato.nombre, style: theme.textTheme.titleMedium),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(item.zapato.modelo, style: theme.textTheme.bodySmall),
-                              Text('\$${formatPrice(item.precioUnitario)}', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.blue.shade700)),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.remove_circle_outline),
-                                onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad - 1),
-                              ),
-                              Text('${item.cantidad}', style: theme.textTheme.titleMedium),
-                              IconButton(
-                                icon: const Icon(Icons.add_circle_outline),
-                                onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad + 1),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                onPressed: () => cart.removeItem(item.zapato.id),
-                              ),
-                            ],
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
-                      );
-                    },
+      body: kIsWeb ? _buildWebLayout(context, cart, theme) : _buildMobileLayout(context, cart, theme),
+    );
+  }
+
+  Widget _buildWebLayout(BuildContext context, CartProvider cart, ThemeData theme) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1100),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 3,
+                child: Card(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                        child: Text('Productos (${cart.items.length})', style: theme.textTheme.titleMedium),
+                      ),
+                      const Divider(),
+                      ...cart.items.map((item) => _WebCartItem(item: item, cart: cart, theme: theme)),
+                    ],
                   ),
                 ),
-                _CartBottomBar(cart: cart, theme: theme, onCheckout: () => _checkout(context)),
+              ),
+              const SizedBox(width: 20),
+              SizedBox(
+                width: 300,
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Resumen', style: theme.textTheme.titleLarge),
+                        const Divider(height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Tipo de precio:', style: theme.textTheme.bodyMedium),
+                            Text(cart.tipoPrecioString, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Artículos:', style: theme.textTheme.bodyMedium),
+                            Text('${cart.items.length}', style: theme.textTheme.bodyMedium),
+                          ],
+                        ),
+                        const Divider(height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Total', style: theme.textTheme.titleLarge),
+                            Text('\$${formatPrice(cart.total)}', style: theme.textTheme.titleLarge?.copyWith(color: Colors.green.shade700, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () => _checkout(context),
+                            style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                            child: const Text('Finalizar Venta', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout(BuildContext context, CartProvider cart, ThemeData theme) {
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: cart.items.length,
+            itemBuilder: (context, index) {
+              final item = cart.items[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: item.zapato.foto != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(item.zapato.foto!, width: 50, height: 50, fit: BoxFit.cover),
+                        )
+                      : Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(8)),
+                          child: const Icon(Icons.category, size: 24),
+                        ),
+                  title: Text(item.zapato.nombre, style: theme.textTheme.titleMedium),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item.zapato.modelo, style: theme.textTheme.bodySmall),
+                      Text('\$${formatPrice(item.precioUnitario)}', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.blue.shade700)),
+                    ],
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad - 1)),
+                      Text('${item.cantidad}', style: theme.textTheme.titleMedium),
+                      IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad + 1)),
+                      IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => cart.removeItem(item.zapato.id)),
+                    ],
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+              );
+            },
+          ),
+        ),
+        _CartBottomBar(cart: cart, theme: theme, onCheckout: () => _checkout(context)),
+      ],
+    );
+  }
+}
+
+class _WebCartItem extends StatelessWidget {
+  final dynamic item;
+  final CartProvider cart;
+  final ThemeData theme;
+
+  const _WebCartItem({required this.item, required this.cart, required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: theme.dividerColor, width: 0.5)),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: item.zapato.foto != null
+                ? Image.network(item.zapato.foto!, width: 56, height: 56, fit: BoxFit.cover)
+                : Container(width: 56, height: 56, color: Colors.grey[200], child: const Icon(Icons.category)),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.zapato.nombre, style: theme.textTheme.titleSmall),
+                Text(item.zapato.modelo, style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
               ],
             ),
+          ),
+          Text('\$${formatPrice(item.precioUnitario)}', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.blue.shade700)),
+          const SizedBox(width: 16),
+          Row(
+            children: [
+              IconButton(icon: const Icon(Icons.remove_circle_outline, size: 20), onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad - 1)),
+              SizedBox(width: 32, child: Text('${item.cantidad}', textAlign: TextAlign.center, style: theme.textTheme.titleSmall)),
+              IconButton(icon: const Icon(Icons.add_circle_outline, size: 20), onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad + 1)),
+            ],
+          ),
+          Text('\$${formatPrice(item.precioUnitario * item.cantidad)}', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold), textAlign: TextAlign.end),
+          const SizedBox(width: 8),
+          IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18), onPressed: () => cart.removeItem(item.zapato.id)),
+        ],
+      ),
     );
   }
 }
@@ -167,12 +298,9 @@ class _CartBottomBar extends StatelessWidget {
 extension on CartProvider {
   String get tipoPrecioString {
     switch (tipoPrecio) {
-      case TipoPrecio.publico:
-        return 'PÚBLICO';
-      case TipoPrecio.mayorista:
-        return 'MAYORISTA';
-      case TipoPrecio.inversionista:
-        return 'INVERSIONISTA';
+      case TipoPrecio.publico: return 'PÚBLICO';
+      case TipoPrecio.mayorista: return 'MAYORISTA';
+      case TipoPrecio.inversionista: return 'INVERSIONISTA';
     }
   }
 }
