@@ -43,6 +43,19 @@ services:
       postgres:
         condition: service_healthy
 
+  web:
+    build:
+      context: ./zapateria_flutter
+      dockerfile: Dockerfile
+    container_name: zapateria_web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - zapateria_network
+    depends_on:
+      backend:
+        condition: service_started
 
 volumes:
   postgres_data:
