@@ -14,6 +14,9 @@ pipeline {
                     sh '''
                         docker compose --env-file "$ENV_FILE" down --remove-orphans || true
                         docker rm -f zapateria_postgres zapateria_backend zapateria_web 2>/dev/null || true
+                        docker ps -q --filter "publish=8090" | xargs -r docker rm -f || true
+                        docker ps -q --filter "publish=3000" | xargs -r docker rm -f || true
+                        docker ps -q --filter "publish=5432" | xargs -r docker rm -f || true
                         docker compose --env-file "$ENV_FILE" up -d --build
                     '''
                 }
