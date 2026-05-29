@@ -3,19 +3,41 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/providers/cart_provider.dart';
+import 'package:zapateria_flutter/services/inversionista_service.dart';
 import 'package:zapateria_flutter/services/venta_service.dart';
 import 'package:zapateria_flutter/utils/price_utils.dart';
-import 'package:uuid/uuid.dart';
 
-const _uuid = Uuid();
-
-class CartScreen extends StatelessWidget {
+class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
+
+  @override
+  State<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends State<CartScreen> {
+  List<InversionistaModel> _inversionistas = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInversionistas();
+  }
+
+  Future<void> _loadInversionistas() async {
+    try {
+      final list = await inversionistaService.getActivos();
+      if (mounted) setState(() => _inversionistas = list);
+    } catch (_) {}
+  }
 
   Future<void> _checkout(BuildContext context) async {
     final cart = context.read<CartProvider>();
     if (cart.items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El carrito está vacío')));
+      return;
+    }
+    if (cart.tipoPrecio == TipoPrecio.inversionista && cart.inversionistaId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecciona un inversionista')));
       return;
     }
     try {
@@ -41,6 +63,37 @@ class CartScreen extends StatelessWidget {
     }
   }
 
+  void _showTipoPrecioSheet(BuildContext context, CartProvider cart) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Tipo de precio', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+            for (final tipo in TipoPrecio.values)
+              ListTile(
+                leading: Icon(
+                  cart.tipoPrecio == tipo ? Icons.radio_button_checked : Icons.radio_button_off,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                title: Text(_tipoPrecioLabel(tipo)),
+                onTap: () {
+                  cart.setTipoPrecio(tipo);
+                  if (tipo != TipoPrecio.inversionista) cart.setInversionista(null);
+                  Navigator.pop(context);
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -64,7 +117,9 @@ class CartScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Carrito de Compras')),
-      body: kIsWeb ? _buildWebLayout(context, cart, theme) : _buildMobileLayout(context, cart, theme),
+      body: kIsWeb
+          ? _buildWebLayout(context, cart, theme)
+          : _buildMobileLayout(context, cart, theme),
     );
   }
 
@@ -96,7 +151,7 @@ class CartScreen extends StatelessWidget {
               ),
               const SizedBox(width: 20),
               SizedBox(
-                width: 300,
+                width: 320,
                 child: Card(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
@@ -106,27 +161,19 @@ class CartScreen extends StatelessWidget {
                       children: [
                         Text('Resumen', style: theme.textTheme.titleLarge),
                         const Divider(height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Tipo de precio:', style: theme.textTheme.bodyMedium),
-                            Text(cart.tipoPrecioString, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Artículos:', style: theme.textTheme.bodyMedium),
-                            Text('${cart.items.length}', style: theme.textTheme.bodyMedium),
-                          ],
+                        _SummaryControls(
+                          cart: cart,
+                          inversionistas: _inversionistas,
+                          onChangeTipo: () => _showTipoPrecioSheet(context, cart),
                         ),
                         const Divider(height: 24),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text('Total', style: theme.textTheme.titleLarge),
-                            Text('\$${formatPrice(cart.total)}', style: theme.textTheme.titleLarge?.copyWith(color: Colors.green.shade700, fontWeight: FontWeight.bold)),
+                            Text('\$${formatPrice(cart.total)}',
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                    color: Colors.green.shade700, fontWeight: FontWeight.bold)),
                           ],
                         ),
                         const SizedBox(height: 20),
@@ -134,8 +181,10 @@ class CartScreen extends StatelessWidget {
                           width: double.infinity,
                           child: ElevatedButton(
                             onPressed: () => _checkout(context),
-                            style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                            child: const Text('Finalizar Venta', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 14)),
+                            child: const Text('Finalizar Venta',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                           ),
                         ),
                       ],
@@ -170,7 +219,8 @@ class CartScreen extends StatelessWidget {
                       : Container(
                           width: 50,
                           height: 50,
-                          decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(8)),
+                          decoration: BoxDecoration(
+                              color: Colors.grey[200], borderRadius: BorderRadius.circular(8)),
                           child: const Icon(Icons.category, size: 24),
                         ),
                   title: Text(item.zapato.nombre, style: theme.textTheme.titleMedium),
@@ -178,16 +228,23 @@ class CartScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(item.zapato.modelo, style: theme.textTheme.bodySmall),
-                      Text('\$${formatPrice(item.precioUnitario)}', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.blue.shade700)),
+                      Text('\$${formatPrice(item.precioUnitario)}',
+                          style: theme.textTheme.bodyMedium?.copyWith(color: Colors.blue.shade700)),
                     ],
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad - 1)),
+                      IconButton(
+                          icon: const Icon(Icons.remove_circle_outline),
+                          onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad - 1)),
                       Text('${item.cantidad}', style: theme.textTheme.titleMedium),
-                      IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad + 1)),
-                      IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => cart.removeItem(item.zapato.id)),
+                      IconButton(
+                          icon: const Icon(Icons.add_circle_outline),
+                          onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad + 1)),
+                      IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red),
+                          onPressed: () => cart.removeItem(item.zapato.id)),
                     ],
                   ),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -196,11 +253,90 @@ class CartScreen extends StatelessWidget {
             },
           ),
         ),
-        _CartBottomBar(cart: cart, theme: theme, onCheckout: () => _checkout(context)),
+        _CartBottomBar(
+          cart: cart,
+          theme: theme,
+          inversionistas: _inversionistas,
+          onCheckout: () => _checkout(context),
+          onChangeTipo: () => _showTipoPrecioSheet(context, cart),
+        ),
       ],
     );
   }
 }
+
+// ── Controles de tipo precio + inversionista ─────────────────────────────────
+
+class _SummaryControls extends StatelessWidget {
+  final CartProvider cart;
+  final List<InversionistaModel> inversionistas;
+  final VoidCallback onChangeTipo;
+
+  const _SummaryControls({
+    required this.cart,
+    required this.inversionistas,
+    required this.onChangeTipo,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Tipo de precio:', style: theme.textTheme.bodyMedium),
+            TextButton(
+              onPressed: onChangeTipo,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                backgroundColor: theme.colorScheme.primaryContainer,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_tipoPrecioLabel(cart.tipoPrecio),
+                      style: TextStyle(
+                          color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 4),
+                  Icon(Icons.arrow_drop_down, color: theme.colorScheme.primary, size: 18),
+                ],
+              ),
+            ),
+          ],
+        ),
+        if (cart.tipoPrecio == TipoPrecio.inversionista && inversionistas.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: cart.inversionistaId,
+            decoration: const InputDecoration(
+              labelText: 'Inversionista',
+              border: OutlineInputBorder(),
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            items: inversionistas
+                .map((inv) => DropdownMenuItem(value: inv.id, child: Text(inv.nombre)))
+                .toList(),
+            onChanged: (id) => context.read<CartProvider>().setInversionista(id),
+          ),
+        ],
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Artículos:', style: theme.textTheme.bodyMedium),
+            Text('${cart.items.length}', style: theme.textTheme.bodyMedium),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+// ── Web cart item ─────────────────────────────────────────────────────────────
 
 class _WebCartItem extends StatelessWidget {
   final dynamic item;
@@ -222,7 +358,9 @@ class _WebCartItem extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             child: item.zapato.foto != null
                 ? Image.network(item.zapato.foto!, width: 56, height: 56, fit: BoxFit.cover)
-                : Container(width: 56, height: 56, color: Colors.grey[200], child: const Icon(Icons.category)),
+                : Container(
+                    width: 56, height: 56, color: Colors.grey[200],
+                    child: const Icon(Icons.category)),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -230,34 +368,57 @@ class _WebCartItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(item.zapato.nombre, style: theme.textTheme.titleSmall),
-                Text(item.zapato.modelo, style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
+                Text(item.zapato.modelo,
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
               ],
             ),
           ),
-          Text('\$${formatPrice(item.precioUnitario)}', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.blue.shade700)),
+          Text('\$${formatPrice(item.precioUnitario)}',
+              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.blue.shade700)),
           const SizedBox(width: 16),
           Row(
             children: [
-              IconButton(icon: const Icon(Icons.remove_circle_outline, size: 20), onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad - 1)),
-              SizedBox(width: 32, child: Text('${item.cantidad}', textAlign: TextAlign.center, style: theme.textTheme.titleSmall)),
-              IconButton(icon: const Icon(Icons.add_circle_outline, size: 20), onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad + 1)),
+              IconButton(
+                  icon: const Icon(Icons.remove_circle_outline, size: 20),
+                  onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad - 1)),
+              SizedBox(
+                  width: 32,
+                  child: Text('${item.cantidad}',
+                      textAlign: TextAlign.center, style: theme.textTheme.titleSmall)),
+              IconButton(
+                  icon: const Icon(Icons.add_circle_outline, size: 20),
+                  onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad + 1)),
             ],
           ),
-          Text('\$${formatPrice(item.precioUnitario * item.cantidad)}', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold), textAlign: TextAlign.end),
+          Text('\$${formatPrice(item.precioUnitario * item.cantidad)}',
+              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.end),
           const SizedBox(width: 8),
-          IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18), onPressed: () => cart.removeItem(item.zapato.id)),
+          IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+              onPressed: () => cart.removeItem(item.zapato.id)),
         ],
       ),
     );
   }
 }
 
+// ── Mobile bottom bar ─────────────────────────────────────────────────────────
+
 class _CartBottomBar extends StatelessWidget {
   final CartProvider cart;
   final ThemeData theme;
+  final List<InversionistaModel> inversionistas;
   final VoidCallback onCheckout;
+  final VoidCallback onChangeTipo;
 
-  const _CartBottomBar({required this.cart, required this.theme, required this.onCheckout});
+  const _CartBottomBar({
+    required this.cart,
+    required this.theme,
+    required this.inversionistas,
+    required this.onCheckout,
+    required this.onChangeTipo,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -266,20 +427,47 @@ class _CartBottomBar extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Tipo de precio:', style: theme.textTheme.titleMedium),
-                Text(cart.tipoPrecioString, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                TextButton(
+                  onPressed: onChangeTipo,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(_tipoPrecioLabel(cart.tipoPrecio),
+                          style: TextStyle(
+                              color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+                      const Icon(Icons.arrow_drop_down),
+                    ],
+                  ),
+                ),
               ],
             ),
+            if (cart.tipoPrecio == TipoPrecio.inversionista && inversionistas.isNotEmpty)
+              DropdownButtonFormField<String>(
+                value: cart.inversionistaId,
+                decoration: const InputDecoration(
+                  labelText: 'Inversionista',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                items: inversionistas
+                    .map((inv) => DropdownMenuItem(value: inv.id, child: Text(inv.nombre)))
+                    .toList(),
+                onChanged: (id) => context.read<CartProvider>().setInversionista(id),
+              ),
             const Divider(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Total:', style: theme.textTheme.headlineMedium),
-                Text('\$${formatPrice(cart.total)}', style: theme.textTheme.headlineMedium?.copyWith(color: Colors.green.shade700)),
+                Text('\$${formatPrice(cart.total)}',
+                    style: theme.textTheme.headlineMedium?.copyWith(color: Colors.green.shade700)),
               ],
             ),
             const SizedBox(height: 12),
@@ -295,12 +483,16 @@ class _CartBottomBar extends StatelessWidget {
   }
 }
 
-extension on CartProvider {
-  String get tipoPrecioString {
-    switch (tipoPrecio) {
-      case TipoPrecio.publico: return 'PÚBLICO';
-      case TipoPrecio.mayorista: return 'MAYORISTA';
-      case TipoPrecio.inversionista: return 'INVERSIONISTA';
-    }
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+String _tipoPrecioLabel(TipoPrecio tipo) {
+  switch (tipo) {
+    case TipoPrecio.publico: return 'PÚBLICO';
+    case TipoPrecio.mayorista: return 'MAYORISTA';
+    case TipoPrecio.inversionista: return 'INVERSIONISTA';
   }
+}
+
+extension on CartProvider {
+  String get tipoPrecioString => _tipoPrecioLabel(tipoPrecio);
 }

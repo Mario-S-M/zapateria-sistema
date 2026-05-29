@@ -33,8 +33,15 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_onTabChanged);
     _scrollController.addListener(_onScroll);
     _loadZapatos();
+  }
+
+  void _onTabChanged() {
+    if (_tabController.indexIsChanging) return;
+    const tipos = [TipoPrecio.publico, TipoPrecio.mayorista, TipoPrecio.inversionista];
+    context.read<CartProvider>().setTipoPrecio(tipos[_tabController.index]);
   }
 
   void _onScroll() {
@@ -88,6 +95,7 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     _scrollController.dispose();
     super.dispose();

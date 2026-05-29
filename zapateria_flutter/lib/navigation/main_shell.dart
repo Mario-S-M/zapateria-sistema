@@ -5,6 +5,7 @@ import 'package:zapateria_flutter/screens/ventas_screen.dart';
 import 'package:zapateria_flutter/screens/cart_screen.dart';
 import 'package:zapateria_flutter/screens/scanner_screen.dart';
 import 'package:zapateria_flutter/screens/cierre_caja_screen.dart';
+import 'package:zapateria_flutter/screens/inversionistas_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -16,12 +17,13 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
-  final _pages = const [
-    ZapatosScreen(),
-    VentasScreen(),
-    CartScreen(),
-    ScannerScreen(),
-    CierreCajaScreen(),
+  final _pages = [
+    const ZapatosScreen(),
+    const VentasScreen(),
+    const CartScreen(),
+    const ScannerScreen(),
+    const CierreCajaScreen(),
+    const InversionistasScreen(),
   ];
 
   static const _icons = [
@@ -30,6 +32,7 @@ class _MainShellState extends State<MainShell> {
     Icons.shopping_cart,
     Icons.qr_code_scanner,
     Icons.receipt_long,
+    Icons.people,
   ];
 
   static const _labels = [
@@ -38,6 +41,7 @@ class _MainShellState extends State<MainShell> {
     'Carrito',
     'Escanear',
     'Cierre',
+    'Inversionistas',
   ];
 
   @override
