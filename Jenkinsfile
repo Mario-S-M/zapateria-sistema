@@ -12,7 +12,8 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'zapateria-env-file', variable: 'ENV_FILE')]) {
                     sh '''
-                        docker compose --env-file "$ENV_FILE" down --remove-orphans
+                        docker compose --env-file "$ENV_FILE" down --remove-orphans || true
+                        docker rm -f zapateria_postgres zapateria_backend zapateria_web 2>/dev/null || true
                         docker compose --env-file "$ENV_FILE" up -d --build
                     '''
                 }
