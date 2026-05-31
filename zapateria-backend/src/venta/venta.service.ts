@@ -143,9 +143,9 @@ export class VentaService {
       let query = this.ventaItemRepository
         .createQueryBuilder('vi')
         .innerJoin('vi.venta', 'v')
-        .leftJoin('vi.inversionista', 'i')
+        .leftJoin('v.inversionista', 'i')
         .select('TO_CHAR(v.fecha, \'YYYY-MM-DD\')', 'fecha')
-        .addSelect('COALESCE(i.id, vi.inversionistaId)', 'inversionistaId')
+        .addSelect('COALESCE(i.id, v.inversionistaId)', 'inversionistaId')
         .addSelect('COALESCE(i.nombre, \'Sin Inversionista\')', 'inversionistaNombre')
         .addSelect('COUNT(vi.id)', 'totalItems')
         .addSelect('SUM(vi.subtotal)', 'totalVendido');
@@ -168,7 +168,7 @@ export class VentaService {
 
       const resultados = await query
         .groupBy('TO_CHAR(v.fecha, \'YYYY-MM-DD\')')
-        .addGroupBy('COALESCE(i.id, vi.inversionistaId)')
+        .addGroupBy('COALESCE(i.id, v.inversionistaId)')
         .addGroupBy('COALESCE(i.nombre, \'Sin Inversionista\')')
         .orderBy('TO_CHAR(v.fecha, \'YYYY-MM-DD\')', 'DESC')
         .addOrderBy('COALESCE(i.nombre, \'Sin Inversionista\')', 'ASC')

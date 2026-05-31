@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/services/venta_service.dart';
 import 'package:zapateria_flutter/utils/price_utils.dart';
@@ -209,7 +208,10 @@ class _CierreCajaScreenState extends State<CierreCajaScreen> {
   String _formatDate(String fecha) {
     try {
       final d = DateTime.parse(fecha);
-      return DateFormat('EEEE, d \'de\' MMMM \'de\' yyyy', 'es_MX').format(d);
+      const dias = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+      const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                     'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+      return '${dias[d.weekday - 1]}, ${d.day} de ${meses[d.month - 1]} de ${d.year}';
     } catch (_) {
       return fecha;
     }

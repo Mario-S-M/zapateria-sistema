@@ -34,28 +34,6 @@ class _VentasScreenState extends State<VentasScreen> {
     }
   }
 
-  Future<void> _deleteVenta(VentaModel venta) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Eliminar Venta'),
-        content: Text('¿Eliminar la venta ${venta.folio}?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Eliminar')),
-        ],
-      ),
-    );
-    if (confirm == true) {
-      try {
-        await ventaService.delete(venta.id);
-        if (mounted) _loadVentas();
-      } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    }
-  }
-
   void _editVenta(BuildContext context, VentaModel venta) {
     Navigator.push(
       context,
@@ -104,7 +82,6 @@ class _VentasScreenState extends State<VentasScreen> {
             venta: venta,
             isWeb: true,
             onEdit: () => _editVenta(context, venta),
-            onDelete: () => _deleteVenta(venta),
           );
         },
       ),
@@ -123,7 +100,6 @@ class _VentasScreenState extends State<VentasScreen> {
             venta: venta,
             isWeb: false,
             onEdit: () => _editVenta(context, venta),
-            onDelete: () => _deleteVenta(venta),
           );
         },
       ),
@@ -137,13 +113,11 @@ class _VentaAccordion extends StatelessWidget {
   final VentaModel venta;
   final bool isWeb;
   final VoidCallback onEdit;
-  final VoidCallback onDelete;
 
   const _VentaAccordion({
     required this.venta,
     required this.isWeb,
     required this.onEdit,
-    required this.onDelete,
   });
 
   @override
@@ -197,13 +171,6 @@ class _VentaAccordion extends StatelessWidget {
               icon: const Icon(Icons.edit_outlined, size: 18),
               onPressed: onEdit,
               tooltip: 'Editar',
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
-              onPressed: onDelete,
-              tooltip: 'Eliminar',
               visualDensity: VisualDensity.compact,
               padding: EdgeInsets.zero,
             ),
