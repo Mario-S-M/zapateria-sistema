@@ -441,9 +441,14 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
             Text('Colores *', style: theme.textTheme.titleMedium),
             const Spacer(),
             TextButton.icon(
+              onPressed: () => _showManageColorsDialog(context),
+              icon: const Icon(Icons.tune, size: 16),
+              label: const Text('Gestionar'),
+            ),
+            TextButton.icon(
               onPressed: () => _showCreateColorDialog(context),
               icon: const Icon(Icons.add, size: 16),
-              label: const Text('Nuevo color'),
+              label: const Text('Nuevo'),
             ),
             Text('${_selectedColorIds.length} sel.', style: theme.textTheme.bodySmall),
           ],
@@ -532,15 +537,129 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
     );
   }
 
+  // ── Gestionar colores ────────────────────────────────────────────────────────
+
+  void _showManageColorsDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (sheetCtx) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        maxChildSize: 0.95,
+        minChildSize: 0.4,
+        expand: false,
+        builder: (_, scrollCtrl) => StatefulBuilder(
+          builder: (sheetCtx, setSheet) {
+            return Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
+                  child: Row(
+                    children: [
+                      Text('Gestionar colores', style: Theme.of(context).textTheme.titleMedium),
+                      const Spacer(),
+                      TextButton.icon(
+                        onPressed: () {
+                          Navigator.pop(sheetCtx);
+                          Future.delayed(const Duration(milliseconds: 250), () {
+                            if (mounted) _showCreateColorDialog(context);
+                          });
+                        },
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text('Nuevo'),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: _colores.isEmpty
+                      ? const Center(child: Text('Sin colores registrados'))
+                      : ListView.builder(
+                          controller: scrollCtrl,
+                          itemCount: _colores.length,
+                          itemBuilder: (_, i) {
+                            final c = _colores[i];
+                            return ListTile(
+                              leading: ColorCircle(color: c, size: 36),
+                              title: Text(c.nombre),
+                              subtitle: Text(
+                                c.isCombo == true ? 'Combinación' : 'Simple',
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit_outlined, size: 20),
+                                    tooltip: 'Editar',
+                                    onPressed: () {
+                                      Navigator.pop(sheetCtx);
+                                      Future.delayed(const Duration(milliseconds: 250), () {
+                                        if (mounted) _showEditColorDialog(context, c);
+                                      });
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                    tooltip: 'Eliminar',
+                                    onPressed: () async {
+                                      final ok = await showDialog<bool>(
+                                        context: context,
+                                        builder: (d) => AlertDialog(
+                                          title: const Text('Eliminar color'),
+                                          content: Text('¿Eliminar "${c.nombre}"?'),
+                                          actions: [
+                                            TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancelar')),
+                                            ElevatedButton(
+                                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                              onPressed: () => Navigator.pop(d, true),
+                                              child: const Text('Eliminar'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (ok == true && mounted) {
+                                        try {
+                                          await colorService.delete(c.id);
+                                          setState(() {
+                                            _colores.removeWhere((x) => x.id == c.id);
+                                            _selectedColorIds.remove(c.id);
+                                          });
+                                          setSheet(() {});
+                                        } catch (e) {
+                                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                                        }
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // ── Crear color ───────────────────────────────────────────────────────────────
+
   void _showCreateColorDialog(BuildContext context) {
     final nombreCtrl = TextEditingController();
-    String hexColor = '#000000';
+    String hexColor = '#1A1A1A';
     bool isCombo = false;
-    String primaryColor = '#000000';
-    String secondaryColor = '#FFFFFF';
+    ColorModel? primaryModel;
+    ColorModel? secondaryModel;
     bool saving = false;
 
-    final colorOptions = [
+    final simpleColors = _colores.where((c) => c.isCombo != true).toList();
+    final paletteOptions = [
       '#1A1A1A', '#FFFFFF', '#C62828', '#1A237E', '#2E7D32',
       '#795548', '#757575', '#E91E63', '#F9A825', '#D7CCC8',
       '#FF6F00', '#4A148C', '#006064', '#BF360C', '#37474F',
@@ -549,7 +668,7 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Dialog(
+        builder: (ctx, setModal) => Dialog(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
             child: AlertDialog(
@@ -559,13 +678,17 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    TextField(controller: nombreCtrl, decoration: const InputDecoration(labelText: 'Nombre del color *'), autofocus: true),
+                    TextField(
+                      controller: nombreCtrl,
+                      decoration: const InputDecoration(labelText: 'Nombre del color *'),
+                      autofocus: true,
+                    ),
                     const SizedBox(height: 16),
                     Row(
                       children: [
                         const Text('¿Es combinación?'),
                         const Spacer(),
-                        Switch(value: isCombo, onChanged: (v) => setModalState(() => isCombo = v)),
+                        Switch(value: isCombo, onChanged: (v) => setModal(() { isCombo = v; primaryModel = null; secondaryModel = null; })),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -574,33 +697,21 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8, runSpacing: 8,
-                        children: colorOptions.map((c) => GestureDetector(
-                          onTap: () => setModalState(() => hexColor = c),
-                          child: Container(
-                            width: 36, height: 36,
-                            decoration: BoxDecoration(
-                              color: Color(int.parse('FF${c.replaceAll('#', '')}', radix: 16)),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: hexColor == c ? Colors.blue : Colors.grey.shade300, width: hexColor == c ? 3 : 1),
-                            ),
-                          ),
+                        children: paletteOptions.map((c) => GestureDetector(
+                          onTap: () => setModal(() => hexColor = c),
+                          child: _PaletteCircle(hex: c, selected: hexColor == c, size: 36),
                         )).toList(),
                       ),
+                    ] else if (simpleColors.isEmpty) ...[
+                      const Text('No hay colores simples creados. Crea al menos dos colores simples primero.', style: TextStyle(color: Colors.orange)),
                     ] else ...[
                       const Text('Color primario:', style: TextStyle(fontWeight: FontWeight.w500)),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8, runSpacing: 8,
-                        children: colorOptions.map((c) => GestureDetector(
-                          onTap: () => setModalState(() => primaryColor = c),
-                          child: Container(
-                            width: 32, height: 32,
-                            decoration: BoxDecoration(
-                              color: Color(int.parse('FF${c.replaceAll('#', '')}', radix: 16)),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: primaryColor == c ? Colors.blue : Colors.grey.shade300, width: primaryColor == c ? 3 : 1),
-                            ),
-                          ),
+                        children: simpleColors.map((c) => GestureDetector(
+                          onTap: () => setModal(() => primaryModel = c),
+                          child: _ColorModelChip(model: c, selected: primaryModel?.id == c.id),
                         )).toList(),
                       ),
                       const SizedBox(height: 12),
@@ -608,18 +719,16 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8, runSpacing: 8,
-                        children: colorOptions.map((c) => GestureDetector(
-                          onTap: () => setModalState(() => secondaryColor = c),
-                          child: Container(
-                            width: 32, height: 32,
-                            decoration: BoxDecoration(
-                              color: Color(int.parse('FF${c.replaceAll('#', '')}', radix: 16)),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: secondaryColor == c ? Colors.blue : Colors.grey.shade300, width: secondaryColor == c ? 3 : 1),
-                            ),
-                          ),
+                        children: simpleColors.map((c) => GestureDetector(
+                          onTap: () => setModal(() => secondaryModel = c),
+                          child: _ColorModelChip(model: c, selected: secondaryModel?.id == c.id),
                         )).toList(),
                       ),
+                      if (primaryModel != null && secondaryModel != null && primaryModel!.id == secondaryModel!.id)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: Text('Los dos colores deben ser diferentes.', style: TextStyle(color: Colors.red, fontSize: 12)),
+                        ),
                     ],
                   ],
                 ),
@@ -628,18 +737,38 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
                 TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
                 ElevatedButton(
                   onPressed: saving ? null : () async {
-                    if (nombreCtrl.text.trim().isEmpty) {
+                    final nombre = nombreCtrl.text.trim();
+                    if (nombre.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El nombre es requerido')));
                       return;
                     }
-                    setModalState(() => saving = true);
+                    if (isCombo) {
+                      if (primaryModel == null || secondaryModel == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecciona ambos colores')));
+                        return;
+                      }
+                      if (primaryModel!.id == secondaryModel!.id) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Los colores deben ser diferentes')));
+                        return;
+                      }
+                      // Validar duplicado
+                      final duplicado = _colores.any((c) =>
+                        c.isCombo == true &&
+                        ((c.primaryColor == primaryModel!.hexadecimal && c.secondaryColor == secondaryModel!.hexadecimal) ||
+                         (c.primaryColor == secondaryModel!.hexadecimal && c.secondaryColor == primaryModel!.hexadecimal)));
+                      if (duplicado) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ya existe una combinación con esos dos colores')));
+                        return;
+                      }
+                    }
+                    setModal(() => saving = true);
                     try {
                       final newColor = await colorService.create(
-                        nombre: nombreCtrl.text.trim(),
+                        nombre: nombre,
                         hexadecimal: isCombo ? null : hexColor,
                         isCombo: isCombo,
-                        primaryColor: isCombo ? primaryColor : null,
-                        secondaryColor: isCombo ? secondaryColor : null,
+                        primaryColor: isCombo ? primaryModel!.hexadecimal : null,
+                        secondaryColor: isCombo ? secondaryModel!.hexadecimal : null,
                       );
                       if (mounted) {
                         setState(() {
@@ -647,15 +776,17 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
                           _selectedColorIds.add(newColor.id);
                         });
                         Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Color "${newColor.nombre}" creado')));
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Color "$nombre" creado')));
                       }
                     } catch (e) {
                       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                     } finally {
-                      if (mounted) setModalState(() => saving = false);
+                      if (mounted) setModal(() => saving = false);
                     }
                   },
-                  child: saving ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Crear'),
+                  child: saving
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Crear'),
                 ),
               ],
             ),
@@ -664,6 +795,137 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
       ),
     );
   }
+
+  // ── Editar color ──────────────────────────────────────────────────────────────
+
+  void _showEditColorDialog(BuildContext context, ColorModel color) {
+    final nombreCtrl = TextEditingController(text: color.nombre);
+    final simpleColors = _colores.where((c) => c.isCombo != true && c.id != color.id).toList();
+    bool isCombo = color.isCombo == true;
+    String hexColor = color.hexadecimal ?? '#1A1A1A';
+    ColorModel? primaryModel = isCombo
+        ? simpleColors.firstWhereOrNull((c) => c.hexadecimal == color.primaryColor)
+        : null;
+    ColorModel? secondaryModel = isCombo
+        ? simpleColors.firstWhereOrNull((c) => c.hexadecimal == color.secondaryColor)
+        : null;
+    bool saving = false;
+
+    final paletteOptions = [
+      '#1A1A1A', '#FFFFFF', '#C62828', '#1A237E', '#2E7D32',
+      '#795548', '#757575', '#E91E63', '#F9A825', '#D7CCC8',
+      '#FF6F00', '#4A148C', '#006064', '#BF360C', '#37474F',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => Dialog(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: AlertDialog(
+              title: const Text('Editar color'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: nombreCtrl,
+                      decoration: const InputDecoration(labelText: 'Nombre del color *'),
+                      autofocus: true,
+                    ),
+                    const SizedBox(height: 16),
+                    if (!isCombo) ...[
+                      const Text('Color:', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8, runSpacing: 8,
+                        children: paletteOptions.map((c) => GestureDetector(
+                          onTap: () => setModal(() => hexColor = c),
+                          child: _PaletteCircle(hex: c, selected: hexColor == c, size: 36),
+                        )).toList(),
+                      ),
+                    ] else if (simpleColors.isEmpty) ...[
+                      const Text('No hay colores simples disponibles.', style: TextStyle(color: Colors.orange)),
+                    ] else ...[
+                      const Text('Color primario:', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8, runSpacing: 8,
+                        children: simpleColors.map((c) => GestureDetector(
+                          onTap: () => setModal(() => primaryModel = c),
+                          child: _ColorModelChip(model: c, selected: primaryModel?.id == c.id),
+                        )).toList(),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text('Color secundario:', style: TextStyle(fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8, runSpacing: 8,
+                        children: simpleColors.map((c) => GestureDetector(
+                          onTap: () => setModal(() => secondaryModel = c),
+                          child: _ColorModelChip(model: c, selected: secondaryModel?.id == c.id),
+                        )).toList(),
+                      ),
+                      if (primaryModel != null && secondaryModel != null && primaryModel!.id == secondaryModel!.id)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: Text('Los dos colores deben ser diferentes.', style: TextStyle(color: Colors.red, fontSize: 12)),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+                ElevatedButton(
+                  onPressed: saving ? null : () async {
+                    final nombre = nombreCtrl.text.trim();
+                    if (nombre.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El nombre es requerido')));
+                      return;
+                    }
+                    if (isCombo && (primaryModel == null || secondaryModel == null || primaryModel!.id == secondaryModel!.id)) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecciona dos colores diferentes')));
+                      return;
+                    }
+                    setModal(() => saving = true);
+                    try {
+                      final updated = await colorService.update(
+                        color.id,
+                        nombre: nombre,
+                        hexadecimal: isCombo ? null : hexColor,
+                        primaryColor: isCombo ? primaryModel!.hexadecimal : null,
+                        secondaryColor: isCombo ? secondaryModel!.hexadecimal : null,
+                      );
+                      if (mounted) {
+                        setState(() {
+                          final idx = _colores.indexWhere((c) => c.id == color.id);
+                          if (idx >= 0) _colores[idx] = updated;
+                        });
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Color "$nombre" actualizado')));
+                      }
+                    } catch (e) {
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                    } finally {
+                      if (mounted) setModal(() => saving = false);
+                    }
+                  },
+                  child: saving
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Text('Guardar'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
 
   void _showScanner(BuildContext context) {
     showDialog(
@@ -684,5 +946,83 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
         ),
       ),
     );
+  }
+}
+
+// ── Widgets auxiliares ────────────────────────────────────────────────────────
+
+class _PaletteCircle extends StatelessWidget {
+  final String hex;
+  final bool selected;
+  final double size;
+
+  const _PaletteCircle({required this.hex, required this.selected, this.size = 36});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Color(int.parse('FF${hex.replaceAll('#', '')}', radix: 16));
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: selected ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
+          width: selected ? 3 : 1,
+        ),
+        boxShadow: selected ? [BoxShadow(color: Theme.of(context).colorScheme.primary.withOpacity(0.4), blurRadius: 4)] : null,
+      ),
+    );
+  }
+}
+
+class _ColorModelChip extends StatelessWidget {
+  final ColorModel model;
+  final bool selected;
+
+  const _ColorModelChip({required this.model, required this.selected});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: model.hexadecimal != null
+                ? Color(int.parse('FF${model.hexadecimal!.replaceAll('#', '')}', radix: 16))
+                : Colors.grey,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: selected ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
+              width: selected ? 3 : 1,
+            ),
+            boxShadow: selected ? [BoxShadow(color: Theme.of(context).colorScheme.primary.withOpacity(0.4), blurRadius: 4)] : null,
+          ),
+          child: selected ? const Icon(Icons.check, color: Colors.white, size: 18) : null,
+        ),
+        const SizedBox(height: 3),
+        SizedBox(
+          width: 48,
+          child: Text(
+            model.nombre,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 9),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+extension _ListExt<T> on List<T> {
+  T? firstWhereOrNull(bool Function(T) test) {
+    for (final e in this) { if (test(e)) return e; }
+    return null;
   }
 }
