@@ -5,6 +5,7 @@ import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/providers/cart_provider.dart';
 import 'package:zapateria_flutter/services/inversionista_service.dart';
 import 'package:zapateria_flutter/services/venta_service.dart';
+import 'package:zapateria_flutter/components/zapato_image.dart';
 import 'package:zapateria_flutter/utils/price_utils.dart';
 
 class CartScreen extends StatefulWidget {
@@ -211,18 +212,7 @@ class _CartScreenState extends State<CartScreen> {
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
-                  leading: item.zapato.foto != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(item.zapato.foto!, width: 50, height: 50, fit: BoxFit.cover),
-                        )
-                      : Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                              color: Colors.grey[200], borderRadius: BorderRadius.circular(8)),
-                          child: const Icon(Icons.category, size: 24),
-                        ),
+                  leading: ZapatoImage(imageUrl: item.zapato.foto, height: 50, width: 50, borderRadius: 8),
                   title: Text(item.zapato.nombre, style: theme.textTheme.titleMedium),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -354,14 +344,7 @@ class _WebCartItem extends StatelessWidget {
       ),
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: item.zapato.foto != null
-                ? Image.network(item.zapato.foto!, width: 56, height: 56, fit: BoxFit.cover)
-                : Container(
-                    width: 56, height: 56, color: Colors.grey[200],
-                    child: const Icon(Icons.category)),
-          ),
+          ZapatoImage(imageUrl: item.zapato.foto, height: 56, width: 56, borderRadius: 8),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
