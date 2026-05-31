@@ -17,8 +17,7 @@ class UploadService {
       );
 
       final filePath = response.data['filePath'] as String;
-      final baseUrl = apiClient.dio.options.baseUrl ?? 'http://192.168.0.200:3000';
-      return '$baseUrl/$filePath';
+      return filePath;
     } catch (e) {
       throw Exception('Error al subir la imagen: $e');
     }

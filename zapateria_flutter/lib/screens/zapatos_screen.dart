@@ -420,7 +420,12 @@ class _ZapatoGridCard extends StatelessWidget {
 
   String _resolveUrl(String? url) {
     if (url == null || url.isEmpty) return '';
-    return url.startsWith('http') ? url : '$baseUrl/$url';
+    String path = url;
+    if (url.startsWith('http')) {
+      path = Uri.parse(url).path.replaceFirst(RegExp(r'^/'), '');
+    }
+    if (path.startsWith('api/')) path = path.substring(4);
+    return '$baseUrl/$path';
   }
 
   @override

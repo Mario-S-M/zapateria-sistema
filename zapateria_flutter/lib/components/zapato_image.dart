@@ -15,6 +15,15 @@ class ZapatoImage extends StatelessWidget {
     this.borderRadius = 12,
   });
 
+  String _resolveImageUrl(String url) {
+    String path = url;
+    if (url.startsWith('http')) {
+      path = Uri.parse(url).path.replaceFirst(RegExp(r'^/'), '');
+    }
+    if (path.startsWith('api/')) path = path.substring(4);
+    return '$baseUrl/$path';
+  }
+
   @override
   Widget build(BuildContext context) {
     if (imageUrl == null || imageUrl!.isEmpty) {
@@ -36,7 +45,7 @@ class ZapatoImage extends StatelessWidget {
       );
     }
 
-    final fullUrl = imageUrl!.startsWith('http') ? imageUrl! : '$baseUrl/$imageUrl';
+    final fullUrl = _resolveImageUrl(imageUrl!);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
