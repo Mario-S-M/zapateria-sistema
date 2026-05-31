@@ -24,8 +24,7 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
   String? _error;
   String _searchQuery = '';
   int _page = 0;
-  final int _perPage = 15;
-  int _displayCount = 20;
+  static const int _perPage = 12;
   late TabController _tabController;
   final ScrollController _scrollController = ScrollController();
 
@@ -34,7 +33,6 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onTabChanged);
-    _scrollController.addListener(_onScroll);
     _loadZapatos();
   }
 
@@ -42,19 +40,6 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
     if (_tabController.indexIsChanging) return;
     const tipos = [TipoPrecio.publico, TipoPrecio.mayorista, TipoPrecio.inversionista];
     context.read<CartProvider>().setTipoPrecio(tipos[_tabController.index]);
-  }
-
-  void _onScroll() {
-    if (!kIsWeb) return;
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 400) {
-      _loadMore();
-    }
-  }
-
-  void _loadMore() {
-    if (_displayCount < _filtered.length) {
-      setState(() => _displayCount = (_displayCount + 20).clamp(0, _filtered.length));
-    }
   }
 
   Future<void> _loadZapatos() async {
@@ -78,12 +63,10 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
              z.codigoBarras.contains(_searchQuery);
     }).toList();
     _page = 0;
-    _displayCount = 20;
   }
 
   List<ZapatoModel> get _paginated => _filtered.skip(_page * _perPage).take(_perPage).toList();
   int get _totalPages => (_filtered.length / _perPage).ceil();
-  List<ZapatoModel> get _visible => kIsWeb ? _filtered.take(_displayCount).toList() : _paginated;
 
   double _getPrecio(ZapatoModel zapato, TipoPrecio tipoPrecio) {
     switch (tipoPrecio) {
@@ -91,6 +74,11 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
       case TipoPrecio.mayorista: return zapato.precioCompra * 1.3;
       case TipoPrecio.inversionista: return zapato.precioCompra * 1.2;
     }
+  }
+
+  void _goToPage(int page) {
+    setState(() => _page = page);
+    _scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
   }
 
   @override
@@ -164,7 +152,7 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: TextField(
               decoration: InputDecoration(
                 hintText: 'Buscar por nombre, modelo o código...',
@@ -179,6 +167,8 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
               },
             ),
           ),
+          if (!_loading && _error == null)
+            _buildTotalBar(theme),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -190,20 +180,8 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
                             ? _buildWebGrid(context, cartProvider)
                             : _buildMobileList(context, cartProvider),
           ),
-          if (!kIsWeb && _totalPages > 1)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Página ${_page + 1} de $_totalPages', style: theme.textTheme.bodySmall),
-                  OutlinedButton(
-                    onPressed: _page < _totalPages - 1 ? () => setState(() => _page++) : null,
-                    child: const Text('Siguiente'),
-                  ),
-                ],
-              ),
-            ),
+          if (!_loading && _error == null && _filtered.isNotEmpty && _totalPages > 1)
+            _buildPaginator(theme),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -212,6 +190,76 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
         label: const Text('Nuevo'),
       ),
     );
+  }
+
+  Widget _buildTotalBar(ThemeData theme) {
+    final isFiltered = _searchQuery.isNotEmpty;
+    final label = isFiltered
+        ? '${_filtered.length} resultado${_filtered.length == 1 ? '' : 's'} de ${_zapatos.length} artículos'
+        : '${_zapatos.length} artículo${_zapatos.length == 1 ? '' : 's'} en total';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Row(
+        children: [
+          Icon(Icons.inventory_2_outlined, size: 16, color: theme.hintColor),
+          const SizedBox(width: 6),
+          Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaginator(ThemeData theme) {
+    final pages = _buildPageNumbers();
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(top: BorderSide(color: theme.dividerColor)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _PageButton(
+            icon: Icons.chevron_left,
+            enabled: _page > 0,
+            onTap: () => _goToPage(_page - 1),
+          ),
+          const SizedBox(width: 4),
+          ...pages.map((p) => p == -1
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4),
+                  child: Text('…', style: TextStyle(fontSize: 14)),
+                )
+              : _PageButton(
+                  label: '${p + 1}',
+                  selected: p == _page,
+                  onTap: () => _goToPage(p),
+                )),
+          const SizedBox(width: 4),
+          _PageButton(
+            icon: Icons.chevron_right,
+            enabled: _page < _totalPages - 1,
+            onTap: () => _goToPage(_page + 1),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<int> _buildPageNumbers() {
+    if (_totalPages <= 7) return List.generate(_totalPages, (i) => i);
+    final result = <int>[];
+    result.add(0);
+    if (_page > 2) result.add(-1);
+    for (int i = (_page - 1).clamp(1, _totalPages - 2);
+         i <= (_page + 1).clamp(1, _totalPages - 2);
+         i++) {
+      result.add(i);
+    }
+    if (_page < _totalPages - 3) result.add(-1);
+    result.add(_totalPages - 1);
+    return result;
   }
 
   Widget _buildError() {
@@ -276,7 +324,7 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
   }
 
   Widget _buildWebGrid(BuildContext context, CartProvider cartProvider) {
-    final hasMore = _displayCount < _filtered.length;
+    final items = _paginated;
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = (constraints.maxWidth / 240).floor().clamp(2, 7);
@@ -289,12 +337,9 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),
-          itemCount: _visible.length + (hasMore ? 1 : 0),
+          itemCount: items.length,
           itemBuilder: (context, index) {
-            if (index == _visible.length) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final zapato = _visible[index];
+            final zapato = items[index];
             return _ZapatoGridCard(
               zapato: zapato,
               tipoPrecio: cartProvider.tipoPrecio,
@@ -305,6 +350,55 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
           },
         );
       },
+    );
+  }
+}
+
+class _PageButton extends StatelessWidget {
+  final String? label;
+  final IconData? icon;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _PageButton({
+    this.label,
+    this.icon,
+    this.selected = false,
+    this.enabled = true,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = selected ? theme.colorScheme.primary : theme.colorScheme.onSurface;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: SizedBox(
+        width: 36,
+        height: 36,
+        child: Material(
+          color: selected ? theme.colorScheme.primary.withOpacity(0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: enabled ? onTap : null,
+            child: Center(
+              child: icon != null
+                  ? Icon(icon, size: 18, color: enabled ? color : theme.disabledColor)
+                  : Text(
+                      label!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                        color: enabled ? color : theme.disabledColor,
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
