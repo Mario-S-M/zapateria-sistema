@@ -147,7 +147,6 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
           inversionistaId: _selectedInversionistaId,
         );
         await zapatoService.create(dto);
-        widget.onSave(dto);
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Zapato guardado')));
