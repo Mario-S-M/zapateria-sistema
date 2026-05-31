@@ -280,8 +280,8 @@ class VentaItemModel {
     return VentaItemModel(
       id: json['id'] as String,
       cantidad: json['cantidad'] as int,
-      precioUnitario: (json['precioUnitario'] as num).toDouble(),
-      subtotal: (json['subtotal'] as num).toDouble(),
+      precioUnitario: double.parse(json['precioUnitario'].toString()),
+      subtotal: double.parse(json['subtotal'].toString()),
       ventaId: json['ventaId'] as String,
       zapatoId: json['zapatoId'] as String?,
       zapato: zapato,
@@ -342,7 +342,7 @@ class VentaModel {
       id: json['id'] as String,
       folio: json['folio'] as String,
       fecha: json['fecha'] as String,
-      total: (json['total'] as num).toDouble(),
+      total: double.parse(json['total'].toString()),
       tipoPrecio: tipoPrecio,
       inversionistaId: json['inversionistaId'] as String?,
       inversionista: json['inversionista'] != null
@@ -384,7 +384,7 @@ class CierreCajaInversionista {
       inversionistaId: json['inversionistaId'] as String,
       nombre: json['nombre'] as String,
       totalItems: json['totalItems'] as int,
-      total: (json['total'] as num).toDouble(),
+      total: double.parse(json['total'].toString()),
     );
   }
 }
@@ -410,7 +410,7 @@ class CierreCajaDia {
     return CierreCajaDia(
       fecha: json['fecha'] as String,
       inversionistas: inversionistas,
-      totalDia: (json['totalDia'] as num).toDouble(),
+      totalDia: double.parse(json['totalDia'].toString()),
     );
   }
 }
