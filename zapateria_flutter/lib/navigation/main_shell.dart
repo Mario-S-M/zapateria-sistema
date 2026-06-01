@@ -59,7 +59,13 @@ class _MainShellState extends State<MainShell> {
               onDestinationSelected: (i) => setState(() => _currentIndex = i),
               extended: true,
               minExtendedWidth: 180,
-              selectedIconTheme: IconThemeData(color: Theme.of(context).colorScheme.primary),
+              indicatorColor: Colors.blue.shade100,
+              selectedIconTheme: const IconThemeData(color: Colors.blue),
+              selectedLabelTextStyle: const TextStyle(
+                color: Colors.blue,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
               destinations: List.generate(
                 _icons.length,
                 (i) => NavigationRailDestination(

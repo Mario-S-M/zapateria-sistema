@@ -21,11 +21,13 @@ class ThemeProvider with ChangeNotifier {
       background: Colors.grey[100]!,
       primaryContainer: Colors.blue.shade50,
       onPrimaryContainer: Colors.blue.shade800,
+      secondaryContainer: Colors.blue.shade50,
+      onSecondaryContainer: Colors.blue.shade800,
     ),
     hoverColor: Colors.grey.withOpacity(0.07),
     scaffoldBackgroundColor: Colors.white,
     navigationRailTheme: NavigationRailThemeData(
-      indicatorColor: Colors.blue.withOpacity(0.14),
+      indicatorColor: Colors.blue.shade100,
     ),
     cardTheme: CardThemeData(
       elevation: 1,
@@ -66,10 +68,12 @@ class ThemeProvider with ChangeNotifier {
       background: Colors.black,
       primaryContainer: Colors.blue.shade900,
       onPrimaryContainer: Colors.blue.shade100,
+      secondaryContainer: Colors.blue.shade800,
+      onSecondaryContainer: Colors.blue.shade100,
     ),
     hoverColor: Colors.white.withOpacity(0.06),
     navigationRailTheme: NavigationRailThemeData(
-      indicatorColor: Colors.blue.withOpacity(0.20),
+      indicatorColor: Colors.blue.shade800,
     ),
     scaffoldBackgroundColor: Colors.black,
     cardTheme: CardThemeData(
