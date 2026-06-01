@@ -650,16 +650,61 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
 
   // ── Crear color ───────────────────────────────────────────────────────────────
 
+  static bool _isValidHex(String hex) =>
+      RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(hex);
+
+  static Color _hexToColor(String hex) =>
+      Color(int.parse('FF${hex.replaceAll('#', '')}', radix: 16));
+
+  Widget _hexPreview(String hex, {double size = 32}) {
+    if (!_isValidHex(hex)) return const SizedBox.shrink();
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        color: _hexToColor(hex),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.grey.shade400),
+      ),
+    );
+  }
+
+  Widget _hexField({
+    required TextEditingController ctrl,
+    required String label,
+    required void Function(String) onValidHex,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: ctrl,
+            decoration: InputDecoration(labelText: label, hintText: '#RRGGBB'),
+            onChanged: (v) { if (_isValidHex(v)) onValidHex(v); },
+          ),
+        ),
+        const SizedBox(width: 8),
+        StatefulBuilder(
+          builder: (_, __) => _hexPreview(ctrl.text),
+        ),
+      ],
+    );
+  }
+
   void _showCreateColorDialog(BuildContext context) {
     final nombreCtrl = TextEditingController();
+    final hexCtrl = TextEditingController(text: '#1A1A1A');
+    final primaryHexCtrl = TextEditingController();
+    final secondaryHexCtrl = TextEditingController();
     String hexColor = '#1A1A1A';
+    String primaryHex = '';
+    String secondaryHex = '';
     bool isCombo = false;
     ColorModel? primaryModel;
     ColorModel? secondaryModel;
     bool saving = false;
 
     final simpleColors = _colores.where((c) => c.isCombo != true).toList();
-    final paletteOptions = [
+    const paletteOptions = [
       '#1A1A1A', '#FFFFFF', '#C62828', '#1A237E', '#2E7D32',
       '#795548', '#757575', '#E91E63', '#F9A825', '#D7CCC8',
       '#FF6F00', '#4A148C', '#006064', '#BF360C', '#37474F',
@@ -688,7 +733,12 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
                       children: [
                         const Text('¿Es combinación?'),
                         const Spacer(),
-                        Switch(value: isCombo, onChanged: (v) => setModal(() { isCombo = v; primaryModel = null; secondaryModel = null; })),
+                        Switch(value: isCombo, onChanged: (v) => setModal(() {
+                          isCombo = v;
+                          primaryModel = null; secondaryModel = null;
+                          primaryHex = ''; secondaryHex = '';
+                          primaryHexCtrl.clear(); secondaryHexCtrl.clear();
+                        })),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -698,33 +748,61 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
                       Wrap(
                         spacing: 8, runSpacing: 8,
                         children: paletteOptions.map((c) => GestureDetector(
-                          onTap: () => setModal(() => hexColor = c),
+                          onTap: () => setModal(() { hexColor = c; hexCtrl.text = c; }),
                           child: _PaletteCircle(hex: c, selected: hexColor == c, size: 36),
                         )).toList(),
                       ),
-                    ] else if (simpleColors.isEmpty) ...[
-                      const Text('No hay colores simples creados. Crea al menos dos colores simples primero.', style: TextStyle(color: Colors.orange)),
+                      const SizedBox(height: 12),
+                      _hexField(
+                        ctrl: hexCtrl,
+                        label: 'Hex personalizado',
+                        onValidHex: (v) => setModal(() => hexColor = v),
+                      ),
                     ] else ...[
+                      // ── Color primario ──
                       const Text('Color primario:', style: TextStyle(fontWeight: FontWeight.w500)),
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8, runSpacing: 8,
-                        children: simpleColors.map((c) => GestureDetector(
-                          onTap: () => setModal(() => primaryModel = c),
-                          child: _ColorModelChip(model: c, selected: primaryModel?.id == c.id),
-                        )).toList(),
+                      if (simpleColors.isNotEmpty)
+                        Wrap(
+                          spacing: 8, runSpacing: 8,
+                          children: simpleColors.map((c) => GestureDetector(
+                            onTap: () => setModal(() {
+                              primaryModel = c;
+                              primaryHex = c.hexadecimal ?? '';
+                              primaryHexCtrl.text = c.hexadecimal ?? '';
+                            }),
+                            child: _ColorModelChip(model: c, selected: primaryModel?.id == c.id),
+                          )).toList(),
+                        ),
+                      const SizedBox(height: 8),
+                      _hexField(
+                        ctrl: primaryHexCtrl,
+                        label: 'Hex primario',
+                        onValidHex: (v) => setModal(() { primaryHex = v; primaryModel = null; }),
                       ),
                       const SizedBox(height: 12),
+                      // ── Color secundario ──
                       const Text('Color secundario:', style: TextStyle(fontWeight: FontWeight.w500)),
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8, runSpacing: 8,
-                        children: simpleColors.map((c) => GestureDetector(
-                          onTap: () => setModal(() => secondaryModel = c),
-                          child: _ColorModelChip(model: c, selected: secondaryModel?.id == c.id),
-                        )).toList(),
+                      if (simpleColors.isNotEmpty)
+                        Wrap(
+                          spacing: 8, runSpacing: 8,
+                          children: simpleColors.map((c) => GestureDetector(
+                            onTap: () => setModal(() {
+                              secondaryModel = c;
+                              secondaryHex = c.hexadecimal ?? '';
+                              secondaryHexCtrl.text = c.hexadecimal ?? '';
+                            }),
+                            child: _ColorModelChip(model: c, selected: secondaryModel?.id == c.id),
+                          )).toList(),
+                        ),
+                      const SizedBox(height: 8),
+                      _hexField(
+                        ctrl: secondaryHexCtrl,
+                        label: 'Hex secundario',
+                        onValidHex: (v) => setModal(() { secondaryHex = v; secondaryModel = null; }),
                       ),
-                      if (primaryModel != null && secondaryModel != null && primaryModel!.id == secondaryModel!.id)
+                      if ((primaryModel != null && secondaryModel != null && primaryModel!.id == secondaryModel!.id))
                         const Padding(
                           padding: EdgeInsets.only(top: 8),
                           child: Text('Los dos colores deben ser diferentes.', style: TextStyle(color: Colors.red, fontSize: 12)),
@@ -742,24 +820,29 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El nombre es requerido')));
                       return;
                     }
+                    final effPrimHex = primaryModel?.hexadecimal ?? primaryHex;
+                    final effSecHex  = secondaryModel?.hexadecimal ?? secondaryHex;
                     if (isCombo) {
-                      if (primaryModel == null || secondaryModel == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecciona ambos colores')));
+                      if (!_isValidHex(effPrimHex) || !_isValidHex(effSecHex)) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingresa un hex válido (#RRGGBB) para ambos colores')));
                         return;
                       }
-                      if (primaryModel!.id == secondaryModel!.id) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Los colores deben ser diferentes')));
+                      if (effPrimHex == effSecHex) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Los dos colores deben ser diferentes')));
                         return;
                       }
-                      // Validar duplicado
                       final duplicado = _colores.any((c) =>
                         c.isCombo == true &&
-                        ((c.primaryColor == primaryModel!.hexadecimal && c.secondaryColor == secondaryModel!.hexadecimal) ||
-                         (c.primaryColor == secondaryModel!.hexadecimal && c.secondaryColor == primaryModel!.hexadecimal)));
+                        ((c.primaryColor == effPrimHex && c.secondaryColor == effSecHex) ||
+                         (c.primaryColor == effSecHex  && c.secondaryColor == effPrimHex)));
                       if (duplicado) {
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ya existe una combinación con esos dos colores')));
                         return;
                       }
+                    }
+                    if (!isCombo && !_isValidHex(hexColor)) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingresa un hex válido (#RRGGBB)')));
+                      return;
                     }
                     setModal(() => saving = true);
                     try {
@@ -767,14 +850,11 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
                         nombre: nombre,
                         hexadecimal: isCombo ? null : hexColor,
                         isCombo: isCombo,
-                        primaryColor: isCombo ? primaryModel!.hexadecimal : null,
-                        secondaryColor: isCombo ? secondaryModel!.hexadecimal : null,
+                        primaryColor: isCombo ? effPrimHex : null,
+                        secondaryColor: isCombo ? effSecHex : null,
                       );
                       if (mounted) {
-                        setState(() {
-                          _colores.add(newColor);
-                          _selectedColorIds.add(newColor.id);
-                        });
+                        setState(() { _colores.add(newColor); _selectedColorIds.add(newColor.id); });
                         Navigator.pop(ctx);
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Color "$nombre" creado')));
                       }
@@ -800,9 +880,14 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
 
   void _showEditColorDialog(BuildContext context, ColorModel color) {
     final nombreCtrl = TextEditingController(text: color.nombre);
+    final hexCtrl = TextEditingController(text: color.hexadecimal ?? '#1A1A1A');
+    final primaryHexCtrl = TextEditingController(text: color.primaryColor ?? '');
+    final secondaryHexCtrl = TextEditingController(text: color.secondaryColor ?? '');
     final simpleColors = _colores.where((c) => c.isCombo != true && c.id != color.id).toList();
     bool isCombo = color.isCombo == true;
     String hexColor = color.hexadecimal ?? '#1A1A1A';
+    String primaryHex = color.primaryColor ?? '';
+    String secondaryHex = color.secondaryColor ?? '';
     ColorModel? primaryModel = isCombo
         ? simpleColors.firstWhereOrNull((c) => c.hexadecimal == color.primaryColor)
         : null;
@@ -811,7 +896,7 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
         : null;
     bool saving = false;
 
-    final paletteOptions = [
+    const paletteOptions = [
       '#1A1A1A', '#FFFFFF', '#C62828', '#1A237E', '#2E7D32',
       '#795548', '#757575', '#E91E63', '#F9A825', '#D7CCC8',
       '#FF6F00', '#4A148C', '#006064', '#BF360C', '#37474F',
@@ -842,31 +927,59 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
                       Wrap(
                         spacing: 8, runSpacing: 8,
                         children: paletteOptions.map((c) => GestureDetector(
-                          onTap: () => setModal(() => hexColor = c),
+                          onTap: () => setModal(() { hexColor = c; hexCtrl.text = c; }),
                           child: _PaletteCircle(hex: c, selected: hexColor == c, size: 36),
                         )).toList(),
                       ),
-                    ] else if (simpleColors.isEmpty) ...[
-                      const Text('No hay colores simples disponibles.', style: TextStyle(color: Colors.orange)),
+                      const SizedBox(height: 12),
+                      _hexField(
+                        ctrl: hexCtrl,
+                        label: 'Hex personalizado',
+                        onValidHex: (v) => setModal(() => hexColor = v),
+                      ),
                     ] else ...[
+                      // ── Color primario ──
                       const Text('Color primario:', style: TextStyle(fontWeight: FontWeight.w500)),
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8, runSpacing: 8,
-                        children: simpleColors.map((c) => GestureDetector(
-                          onTap: () => setModal(() => primaryModel = c),
-                          child: _ColorModelChip(model: c, selected: primaryModel?.id == c.id),
-                        )).toList(),
+                      if (simpleColors.isNotEmpty)
+                        Wrap(
+                          spacing: 8, runSpacing: 8,
+                          children: simpleColors.map((c) => GestureDetector(
+                            onTap: () => setModal(() {
+                              primaryModel = c;
+                              primaryHex = c.hexadecimal ?? '';
+                              primaryHexCtrl.text = c.hexadecimal ?? '';
+                            }),
+                            child: _ColorModelChip(model: c, selected: primaryModel?.id == c.id),
+                          )).toList(),
+                        ),
+                      const SizedBox(height: 8),
+                      _hexField(
+                        ctrl: primaryHexCtrl,
+                        label: 'Hex primario',
+                        onValidHex: (v) => setModal(() { primaryHex = v; primaryModel = null; }),
                       ),
                       const SizedBox(height: 12),
+                      // ── Color secundario ──
                       const Text('Color secundario:', style: TextStyle(fontWeight: FontWeight.w500)),
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8, runSpacing: 8,
-                        children: simpleColors.map((c) => GestureDetector(
-                          onTap: () => setModal(() => secondaryModel = c),
-                          child: _ColorModelChip(model: c, selected: secondaryModel?.id == c.id),
-                        )).toList(),
+                      if (simpleColors.isNotEmpty)
+                        Wrap(
+                          spacing: 8, runSpacing: 8,
+                          children: simpleColors.map((c) => GestureDetector(
+                            onTap: () => setModal(() {
+                              secondaryModel = c;
+                              secondaryHex = c.hexadecimal ?? '';
+                              secondaryHexCtrl.text = c.hexadecimal ?? '';
+                            }),
+                            child: _ColorModelChip(model: c, selected: secondaryModel?.id == c.id),
+                          )).toList(),
+                        ),
+                      const SizedBox(height: 8),
+                      _hexField(
+                        ctrl: secondaryHexCtrl,
+                        label: 'Hex secundario',
+                        onValidHex: (v) => setModal(() { secondaryHex = v; secondaryModel = null; }),
                       ),
                       if (primaryModel != null && secondaryModel != null && primaryModel!.id == secondaryModel!.id)
                         const Padding(
@@ -886,8 +999,20 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El nombre es requerido')));
                       return;
                     }
-                    if (isCombo && (primaryModel == null || secondaryModel == null || primaryModel!.id == secondaryModel!.id)) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecciona dos colores diferentes')));
+                    final effPrimHex = primaryModel?.hexadecimal ?? primaryHex;
+                    final effSecHex  = secondaryModel?.hexadecimal ?? secondaryHex;
+                    if (isCombo) {
+                      if (!_isValidHex(effPrimHex) || !_isValidHex(effSecHex)) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingresa un hex válido (#RRGGBB) para ambos colores')));
+                        return;
+                      }
+                      if (effPrimHex == effSecHex) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Los dos colores deben ser diferentes')));
+                        return;
+                      }
+                    }
+                    if (!isCombo && !_isValidHex(hexColor)) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingresa un hex válido (#RRGGBB)')));
                       return;
                     }
                     setModal(() => saving = true);
@@ -896,8 +1021,8 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
                         color.id,
                         nombre: nombre,
                         hexadecimal: isCombo ? null : hexColor,
-                        primaryColor: isCombo ? primaryModel!.hexadecimal : null,
-                        secondaryColor: isCombo ? secondaryModel!.hexadecimal : null,
+                        primaryColor: isCombo ? effPrimHex : null,
+                        secondaryColor: isCombo ? effSecHex : null,
                       );
                       if (mounted) {
                         setState(() {
