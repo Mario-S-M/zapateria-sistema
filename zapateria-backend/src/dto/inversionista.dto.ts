@@ -16,6 +16,10 @@ export class CreateInversionistaDto {
   @IsOptional()
   @IsBoolean()
   activo?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  tieneTerminal?: boolean;
 }
 
 export class UpdateInversionistaDto {
@@ -35,4 +39,8 @@ export class UpdateInversionistaDto {
   @IsOptional()
   @IsBoolean()
   activo?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  tieneTerminal?: boolean;
 }

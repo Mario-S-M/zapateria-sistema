@@ -145,6 +145,10 @@ class _CierreCajaScreenState extends State<CierreCajaScreen> {
               Text('Desglose por inversionista', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               ...dia.inversionistas.map((inv) => _buildInversionistaAcordeon(inv, theme)),
+              if (dia.deudasTarjeta.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _buildDeudasTarjeta(dia, theme),
+              ],
             ],
           ],
         ),
@@ -173,18 +177,28 @@ class _CierreCajaScreenState extends State<CierreCajaScreen> {
   }
 
   Widget _buildInvWebHeader(CierreCajaInversionista inv, ThemeData theme) {
+    final isNegative = inv.total < 0;
+    final totalColor = isNegative ? Colors.red.shade700 : Colors.green.shade700;
+    final totalStr = isNegative
+        ? '(\$${formatPrice(inv.total.abs())})'
+        : '\$${formatPrice(inv.total)}';
     return Row(
       children: [
         Expanded(flex: 3, child: Text(inv.nombre, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
         Expanded(child: Text('${inv.totalItems} art.', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium)),
-        Expanded(child: Text('\$${formatPrice(inv.total)}', textAlign: TextAlign.end,
-            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.green.shade700, fontWeight: FontWeight.w600))),
+        Expanded(child: Text(totalStr, textAlign: TextAlign.end,
+            style: theme.textTheme.bodyMedium?.copyWith(color: totalColor, fontWeight: FontWeight.w600))),
         const SizedBox(width: 8),
       ],
     );
   }
 
   Widget _buildInvMobileHeader(CierreCajaInversionista inv, ThemeData theme) {
+    final isNegative = inv.total < 0;
+    final totalColor = isNegative ? Colors.red.shade700 : Colors.green.shade700;
+    final totalStr = isNegative
+        ? '(\$${formatPrice(inv.total.abs())})'
+        : '\$${formatPrice(inv.total)}';
     return Row(
       children: [
         Expanded(child: Column(
@@ -195,10 +209,64 @@ class _CierreCajaScreenState extends State<CierreCajaScreen> {
                 style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
           ],
         )),
-        Text('\$${formatPrice(inv.total)}',
-            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.green.shade700, fontWeight: FontWeight.w600)),
+        Text(totalStr,
+            style: theme.textTheme.bodyMedium?.copyWith(color: totalColor, fontWeight: FontWeight.w600)),
         const SizedBox(width: 8),
       ],
+    );
+  }
+
+  Widget _buildDeudasTarjeta(CierreCajaDia dia, ThemeData theme) {
+    final nombre = dia.terminalNombre ?? 'Terminal';
+    return Card(
+      color: Colors.orange.shade50,
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.credit_card, size: 18, color: Colors.orange.shade800),
+                const SizedBox(width: 8),
+                Text(
+                  'Deudas de tarjeta — $nombre debe a:',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: Colors.orange.shade800,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...dia.deudasTarjeta.map((d) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(d.acreedorNombre, style: theme.textTheme.bodyMedium),
+                  Text('\$${formatPrice(d.monto)}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.orange.shade800, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            )),
+            const Divider(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Total a pagar', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                Text(
+                  '\$${formatPrice(dia.deudasTarjeta.fold(0.0, (s, d) => s + d.monto))}',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                      color: Colors.orange.shade800, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 

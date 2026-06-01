@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Venta } from '../entities/venta.entity';
 import { VentaItem } from '../entities/venta-item.entity';
+import { Inversionista } from '../entities/inversionista.entity';
 import { CreateVentaDto, UpdateVentaDto } from '../dto/venta.dto';
 
 @Injectable()
@@ -12,6 +13,8 @@ export class VentaService {
     private ventaRepository: Repository<Venta>,
     @InjectRepository(VentaItem)
     private ventaItemRepository: Repository<VentaItem>,
+    @InjectRepository(Inversionista)
+    private inversionistaRepository: Repository<Inversionista>,
   ) {}
 
   async findAll(): Promise<Venta[]> {
@@ -50,6 +53,8 @@ export class VentaService {
       folio: createVentaDto.folio,
       tipoPrecio: createVentaDto.tipoPrecio,
       inversionistaId: createVentaDto.inversionistaId,
+      metodoPago: createVentaDto.metodoPago,
+      montoTarjeta: createVentaDto.montoTarjeta ?? 0,
       total,
     });
 
@@ -77,7 +82,6 @@ export class VentaService {
       throw new NotFoundException(`Venta con ID ${id} no encontrada`);
     }
 
-    // Calculate new total if items are being updated
     let total = existingVenta.total;
     if (updateVentaDto.items) {
       total = updateVentaDto.items.reduce(
@@ -86,15 +90,15 @@ export class VentaService {
       );
     }
 
-    // Update venta data
     await this.ventaRepository.update(id, {
       folio: updateVentaDto.folio ?? existingVenta.folio,
       tipoPrecio: updateVentaDto.tipoPrecio ?? existingVenta.tipoPrecio,
       inversionistaId: updateVentaDto.inversionistaId ?? existingVenta.inversionistaId,
+      metodoPago: updateVentaDto.metodoPago ?? existingVenta.metodoPago,
+      montoTarjeta: updateVentaDto.montoTarjeta ?? existingVenta.montoTarjeta,
       total,
     });
 
-    // If items are being updated, remove existing items and create new ones
     if (updateVentaDto.items) {
       await this.ventaItemRepository.delete({ ventaId: id });
 
@@ -120,7 +124,7 @@ export class VentaService {
     if (!existingVenta) {
       throw new NotFoundException(`Venta con ID ${id} no encontrada`);
     }
-    
+
     await this.ventaRepository.delete(id);
   }
 
@@ -142,7 +146,9 @@ export class VentaService {
         .addSelect('z.nombre', 'zapatoNombre')
         .addSelect('z.modelo', 'zapatoModelo')
         .addSelect('z.foto', 'zapatoFoto')
-        .addSelect('TO_CHAR(v.fecha AT TIME ZONE \'UTC\', \'YYYY-MM-DD"T"HH24:MI:SS"Z"\')', 'ventaFecha');
+        .addSelect('TO_CHAR(v.fecha AT TIME ZONE \'UTC\', \'YYYY-MM-DD"T"HH24:MI:SS"Z"\')', 'ventaFecha')
+        .addSelect('v.id', 'ventaId')
+        .addSelect('v.montoTarjeta', 'montoTarjeta');
 
       if (fechaInicio) {
         query = query.andWhere(`DATE(v.fecha) >= :fechaInicio`, { fechaInicio });
@@ -156,13 +162,18 @@ export class VentaService {
         .addOrderBy('COALESCE(i.nombre, \'Sin Inversionista\')', 'ASC')
         .getRawMany();
 
-      // Group by fecha → investor in TypeScript to include individual articles
+      const terminal = await this.inversionistaRepository.findOne({
+        where: { tieneTerminal: true },
+      });
+      const terminalId = terminal?.id ?? null;
+      const terminalNombre = terminal?.nombre ?? null;
+
       const byFecha: Record<string, any> = {};
 
       for (const row of rows) {
         const fecha = row.fecha;
         if (!byFecha[fecha]) {
-          byFecha[fecha] = { fecha, inversionistas: {}, totalDia: 0 };
+          byFecha[fecha] = { fecha, inversionistas: {}, ventasCard: {}, totalDia: 0 };
         }
 
         const invKey = row.inversionistaId ?? `_${row.inversionistaNombre}`;
@@ -194,12 +205,78 @@ export class VentaService {
         });
 
         byFecha[fecha].totalDia += subtotal;
+
+        // Track per-venta card data
+        if (!byFecha[fecha].ventasCard[row.ventaId]) {
+          byFecha[fecha].ventasCard[row.ventaId] = {
+            montoTarjeta: parseFloat(row.montoTarjeta) || 0,
+            items: [],
+          };
+        }
+        byFecha[fecha].ventasCard[row.ventaId].items.push({
+          invId: row.inversionistaId ?? null,
+          invNombre: row.inversionistaNombre || 'Sin Inversionista',
+          subtotal,
+        });
+      }
+
+      // Compute card debts per day
+      for (const fechaData of Object.values(byFecha) as any[]) {
+        const deudasMap: Record<string, { nombre: string; monto: number }> = {};
+
+        for (const ventaCard of Object.values(fechaData.ventasCard) as any[]) {
+          if (ventaCard.montoTarjeta <= 0) continue;
+
+          const eduItems = terminalId
+            ? ventaCard.items.filter((i: any) => i.invId === terminalId)
+            : [];
+          const otherItems = terminalId
+            ? ventaCard.items.filter((i: any) => i.invId !== terminalId)
+            : [];
+
+          let cardLeft = ventaCard.montoTarjeta;
+
+          for (const item of eduItems) {
+            const absorbed = Math.min(cardLeft, item.subtotal);
+            cardLeft -= absorbed;
+            if (cardLeft <= 0) break;
+          }
+
+          for (const item of otherItems) {
+            if (cardLeft <= 0) break;
+            const covered = Math.min(cardLeft, item.subtotal);
+            cardLeft -= covered;
+
+            if (covered > 0 && item.invId) {
+              if (!deudasMap[item.invId]) {
+                deudasMap[item.invId] = { nombre: item.invNombre, monto: 0 };
+              }
+              deudasMap[item.invId].monto += covered;
+            }
+          }
+        }
+
+        const deudasArr = Object.entries(deudasMap).map(([id, d]) => ({
+          acreedorId: id,
+          acreedorNombre: d.nombre,
+          monto: d.monto,
+        }));
+
+        const totalDeuda = deudasArr.reduce((s, d) => s + d.monto, 0);
+        if (terminalId && fechaData.inversionistas[terminalId] && totalDeuda > 0) {
+          fechaData.inversionistas[terminalId].total -= totalDeuda;
+        }
+
+        fechaData.deudasTarjeta = deudasArr;
+        fechaData.terminalNombre = terminalNombre;
       }
 
       return Object.values(byFecha).map((d: any) => ({
         fecha: d.fecha,
         totalDia: d.totalDia,
         inversionistas: Object.values(d.inversionistas),
+        deudasTarjeta: d.deudasTarjeta ?? [],
+        terminalNombre: d.terminalNombre ?? null,
       }));
     } catch (error) {
       console.error('❌ Error in getCierreCaja:', error);

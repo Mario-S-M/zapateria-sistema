@@ -26,6 +26,9 @@ export class Inversionista {
   @Column({ default: true })
   activo: boolean;
 
+  @Column({ default: false })
+  tieneTerminal: boolean;
+
   @OneToMany(() => Venta, (venta) => venta.inversionista)
   ventas: Venta[];
 

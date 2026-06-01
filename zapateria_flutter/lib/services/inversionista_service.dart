@@ -25,12 +25,14 @@ class InversionistaService {
     String? telefono,
     String? email,
     bool? activo,
+    bool tieneTerminal = false,
   }) async {
     final data = <String, dynamic>{
       'nombre': nombre,
       if (telefono != null) 'telefono': telefono,
       if (email != null) 'email': email,
       if (activo != null) 'activo': activo,
+      'tieneTerminal': tieneTerminal,
     };
     final response = await _dio.post('/inversionistas', data: data);
     return InversionistaModel.fromJson(response.data);
@@ -42,12 +44,14 @@ class InversionistaService {
     String? telefono,
     String? email,
     bool? activo,
+    bool? tieneTerminal,
   }) async {
     final data = <String, dynamic>{};
     if (nombre != null) data['nombre'] = nombre;
     if (telefono != null) data['telefono'] = telefono;
     if (email != null) data['email'] = email;
     if (activo != null) data['activo'] = activo;
+    if (tieneTerminal != null) data['tieneTerminal'] = tieneTerminal;
     final response = await _dio.put('/inversionistas/$id', data: data);
     return InversionistaModel.fromJson(response.data);
   }

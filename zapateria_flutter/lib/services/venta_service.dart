@@ -20,11 +20,15 @@ class VentaService {
     required TipoPrecio tipoPrecio,
     String? inversionistaId,
     required List<VentaItemDto> items,
+    MetodoPago metodoPago = MetodoPago.efectivo,
+    double montoTarjeta = 0,
   }) async {
     final data = <String, dynamic>{
       'folio': folio,
       'tipoPrecio': tipoPrecioString(tipoPrecio),
       if (inversionistaId != null) 'inversionistaId': inversionistaId,
+      'metodoPago': metodoPagoString(metodoPago),
+      if (montoTarjeta > 0) 'montoTarjeta': montoTarjeta,
       'items': items.map((i) => i.toJson()).toList(),
     };
     final response = await _dio.post('/ventas', data: data);
@@ -47,7 +51,8 @@ class VentaService {
     final query = <String, String>{};
     if (fechaInicio != null) query['fechaInicio'] = fechaInicio;
     if (fechaFin != null) query['fechaFin'] = fechaFin;
-    final response = await _dio.get('/ventas/reporte/cierre-caja', queryParameters: query.isEmpty ? null : query);
+    final response = await _dio.get('/ventas/reporte/cierre-caja',
+        queryParameters: query.isEmpty ? null : query);
     return (response.data as List).map((j) => CierreCajaDia.fromJson(j)).toList();
   }
 }
@@ -60,6 +65,17 @@ String tipoPrecioString(TipoPrecio tp) {
       return 'MAYORISTA';
     case TipoPrecio.inversionista:
       return 'INVERSIONISTA';
+  }
+}
+
+String metodoPagoString(MetodoPago mp) {
+  switch (mp) {
+    case MetodoPago.efectivo:
+      return 'EFECTIVO';
+    case MetodoPago.tarjeta:
+      return 'TARJETA';
+    case MetodoPago.mixto:
+      return 'MIXTO';
   }
 }
 
@@ -87,15 +103,26 @@ class VentaUpdateDto {
   final String? folio;
   final TipoPrecio? tipoPrecio;
   final String? inversionistaId;
+  final MetodoPago? metodoPago;
+  final double? montoTarjeta;
   final List<VentaItemDto>? items;
 
-  VentaUpdateDto({this.folio, this.tipoPrecio, this.inversionistaId, this.items});
+  VentaUpdateDto({
+    this.folio,
+    this.tipoPrecio,
+    this.inversionistaId,
+    this.metodoPago,
+    this.montoTarjeta,
+    this.items,
+  });
 
   Map<String, dynamic> toJson() {
     return {
       if (folio != null) 'folio': folio,
       if (tipoPrecio != null) 'tipoPrecio': tipoPrecioString(tipoPrecio!),
       if (inversionistaId != null) 'inversionistaId': inversionistaId,
+      if (metodoPago != null) 'metodoPago': metodoPagoString(metodoPago!),
+      if (montoTarjeta != null) 'montoTarjeta': montoTarjeta,
       if (items != null) 'items': items!.map((i) => i.toJson()).toList(),
     };
   }

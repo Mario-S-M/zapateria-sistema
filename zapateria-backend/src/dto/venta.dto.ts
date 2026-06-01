@@ -10,7 +10,7 @@ import {
   ArrayMinSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { TipoPrecio } from '../entities/venta.entity';
+import { MetodoPago, TipoPrecio } from '../entities/venta.entity';
 
 export class VentaItemDto {
   @IsString()
@@ -42,6 +42,15 @@ export class CreateVentaDto {
   @IsString()
   inversionistaId?: string;
 
+  @IsOptional()
+  @IsEnum(MetodoPago)
+  metodoPago?: MetodoPago;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  montoTarjeta?: number;
+
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => VentaItemDto)
@@ -62,6 +71,15 @@ export class UpdateVentaDto {
   @IsOptional()
   @IsString()
   inversionistaId?: string;
+
+  @IsOptional()
+  @IsEnum(MetodoPago)
+  metodoPago?: MetodoPago;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  montoTarjeta?: number;
 
   @IsOptional()
   @IsArray()

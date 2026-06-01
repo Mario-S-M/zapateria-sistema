@@ -47,6 +47,7 @@ class _InversionistasScreenState extends State<InversionistasScreen> {
                       'nombre': existing.nombre,
                       'telefono': existing.telefono,
                       'email': existing.email,
+                      'tieneTerminal': existing.tieneTerminal,
                     }
                   : null,
               onSave: (data) async {
@@ -58,12 +59,14 @@ class _InversionistasScreenState extends State<InversionistasScreen> {
                       nombre: data['nombre'],
                       telefono: data['telefono'],
                       email: data['email'],
+                      tieneTerminal: data['tieneTerminal'],
                     );
                   } else {
                     await inversionistaService.create(
                       nombre: data['nombre'],
                       telefono: data['telefono'],
                       email: data['email'],
+                      tieneTerminal: data['tieneTerminal'] ?? false,
                     );
                   }
                   if (mounted) _load();
@@ -174,6 +177,7 @@ class _InversionistasScreenState extends State<InversionistasScreen> {
               Expanded(flex: 3, child: Text('Nombre', style: theme.textTheme.labelLarge)),
               Expanded(flex: 2, child: Text('Teléfono', style: theme.textTheme.labelLarge)),
               Expanded(flex: 3, child: Text('Email', style: theme.textTheme.labelLarge)),
+              Expanded(child: Text('Terminal', style: theme.textTheme.labelLarge, textAlign: TextAlign.center)),
               Expanded(child: Text('Estado', style: theme.textTheme.labelLarge, textAlign: TextAlign.center)),
               const SizedBox(width: 96),
             ],
@@ -209,6 +213,13 @@ class _InversionistasScreenState extends State<InversionistasScreen> {
                         Expanded(
                           flex: 3,
                           child: Text(inv.email ?? '—', style: theme.textTheme.bodyMedium),
+                        ),
+                        Expanded(
+                          child: Center(
+                            child: inv.tieneTerminal
+                                ? _TerminalBadge()
+                                : const SizedBox.shrink(),
+                          ),
                         ),
                         Expanded(
                           child: Center(
@@ -268,6 +279,8 @@ class _InversionistasScreenState extends State<InversionistasScreen> {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (inv.tieneTerminal) _TerminalBadge(),
+                  if (inv.tieneTerminal) const SizedBox(width: 4),
                   _ActiveBadge(activo: inv.activo),
                   IconButton(
                     icon: const Icon(Icons.edit_outlined),
@@ -279,6 +292,32 @@ class _InversionistasScreenState extends State<InversionistasScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _TerminalBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.blue.withOpacity(0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.credit_card, size: 11, color: Colors.blue.shade700),
+          const SizedBox(width: 3),
+          Text(
+            'Terminal',
+            style: TextStyle(
+                fontSize: 11, color: Colors.blue.shade700, fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }

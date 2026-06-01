@@ -202,6 +202,7 @@ class InversionistaModel {
   final String? telefono;
   final String? email;
   final bool activo;
+  final bool tieneTerminal;
   final String createdAt;
   final String updatedAt;
 
@@ -211,6 +212,7 @@ class InversionistaModel {
     this.telefono,
     this.email,
     required this.activo,
+    this.tieneTerminal = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -222,6 +224,7 @@ class InversionistaModel {
       telefono: json['telefono'] as String?,
       email: json['email'] as String?,
       activo: json['activo'] as bool,
+      tieneTerminal: json['tieneTerminal'] as bool? ?? false,
       createdAt: json['createdAt'] as String,
       updatedAt: json['updatedAt'] as String,
     );
@@ -234,6 +237,7 @@ class InversionistaModel {
       if (telefono != null) 'telefono': telefono,
       if (email != null) 'email': email,
       'activo': activo,
+      'tieneTerminal': tieneTerminal,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
     };
@@ -244,6 +248,12 @@ enum TipoPrecio {
   publico,
   mayorista,
   inversionista,
+}
+
+enum MetodoPago {
+  efectivo,
+  tarjeta,
+  mixto,
 }
 
 class VentaItemModel {
@@ -297,6 +307,8 @@ class VentaModel {
   final String fecha;
   final double total;
   final TipoPrecio tipoPrecio;
+  final MetodoPago metodoPago;
+  final double montoTarjeta;
   final String? inversionistaId;
   final InversionistaModel? inversionista;
   final List<VentaItemModel> items;
@@ -309,6 +321,8 @@ class VentaModel {
     required this.fecha,
     required this.total,
     required this.tipoPrecio,
+    this.metodoPago = MetodoPago.efectivo,
+    this.montoTarjeta = 0,
     this.inversionistaId,
     this.inversionista,
     required this.items,
@@ -324,10 +338,7 @@ class VentaModel {
         .toList();
 
     TipoPrecio tipoPrecio;
-    switch ((json['tipoPrecio'] as String).toUpperCase()) {
-      case 'PUBLICO':
-        tipoPrecio = TipoPrecio.publico;
-        break;
+    switch ((json['tipoPrecio'] as String? ?? 'PUBLICO').toUpperCase()) {
       case 'MAYORISTA':
         tipoPrecio = TipoPrecio.mayorista;
         break;
@@ -338,12 +349,26 @@ class VentaModel {
         tipoPrecio = TipoPrecio.publico;
     }
 
+    MetodoPago metodoPago;
+    switch ((json['metodoPago'] as String? ?? 'EFECTIVO').toUpperCase()) {
+      case 'TARJETA':
+        metodoPago = MetodoPago.tarjeta;
+        break;
+      case 'MIXTO':
+        metodoPago = MetodoPago.mixto;
+        break;
+      default:
+        metodoPago = MetodoPago.efectivo;
+    }
+
     return VentaModel(
       id: json['id'] as String,
       folio: json['folio'] as String,
       fecha: json['fecha'] as String,
       total: double.parse(json['total'].toString()),
       tipoPrecio: tipoPrecio,
+      metodoPago: metodoPago,
+      montoTarjeta: double.parse((json['montoTarjeta'] ?? 0).toString()),
       inversionistaId: json['inversionistaId'] as String?,
       inversionista: json['inversionista'] != null
           ? InversionistaModel.fromJson(json['inversionista'] as Map<String, dynamic>)
@@ -362,6 +387,17 @@ class VentaModel {
         return 'MAYORISTA';
       case TipoPrecio.inversionista:
         return 'INVERSIONISTA';
+    }
+  }
+
+  String get metodoPagoString {
+    switch (metodoPago) {
+      case MetodoPago.efectivo:
+        return 'EFECTIVO';
+      case MetodoPago.tarjeta:
+        return 'TARJETA';
+      case MetodoPago.mixto:
+        return 'MIXTO';
     }
   }
 }
@@ -432,15 +468,39 @@ class CierreCajaInversionista {
   }
 }
 
+class CierreCajaDeuda {
+  final String acreedorId;
+  final String acreedorNombre;
+  final double monto;
+
+  CierreCajaDeuda({
+    required this.acreedorId,
+    required this.acreedorNombre,
+    required this.monto,
+  });
+
+  factory CierreCajaDeuda.fromJson(Map<String, dynamic> json) {
+    return CierreCajaDeuda(
+      acreedorId: json['acreedorId'] as String,
+      acreedorNombre: json['acreedorNombre'] as String,
+      monto: double.parse(json['monto'].toString()),
+    );
+  }
+}
+
 class CierreCajaDia {
   final String fecha;
   final List<CierreCajaInversionista> inversionistas;
   final double totalDia;
+  final List<CierreCajaDeuda> deudasTarjeta;
+  final String? terminalNombre;
 
   CierreCajaDia({
     required this.fecha,
     required this.inversionistas,
     required this.totalDia,
+    this.deudasTarjeta = const [],
+    this.terminalNombre,
   });
 
   factory CierreCajaDia.fromJson(Map<String, dynamic> json) {
@@ -450,10 +510,18 @@ class CierreCajaDia {
         .map((i) => CierreCajaInversionista.fromJson(i))
         .toList();
 
+    final deudasJson = json['deudasTarjeta'] as List? ?? [];
+    final deudasTarjeta = deudasJson
+        .whereType<Map<String, dynamic>>()
+        .map((d) => CierreCajaDeuda.fromJson(d))
+        .toList();
+
     return CierreCajaDia(
       fecha: json['fecha'] as String,
       inversionistas: inversionistas,
       totalDia: double.parse(json['totalDia'].toString()),
+      deudasTarjeta: deudasTarjeta,
+      terminalNombre: json['terminalNombre'] as String?,
     );
   }
 }

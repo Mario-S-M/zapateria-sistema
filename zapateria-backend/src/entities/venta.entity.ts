@@ -17,6 +17,12 @@ export enum TipoPrecio {
   INVERSIONISTA = 'INVERSIONISTA',
 }
 
+export enum MetodoPago {
+  EFECTIVO = 'EFECTIVO',
+  TARJETA = 'TARJETA',
+  MIXTO = 'MIXTO',
+}
+
 @Entity('ventas')
 export class Venta {
   @PrimaryGeneratedColumn('uuid')
@@ -37,6 +43,16 @@ export class Venta {
     default: TipoPrecio.PUBLICO,
   })
   tipoPrecio: TipoPrecio;
+
+  @Column({
+    type: 'enum',
+    enum: MetodoPago,
+    default: MetodoPago.EFECTIVO,
+  })
+  metodoPago: MetodoPago;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  montoTarjeta: number;
 
   @Column({ nullable: true })
   inversionistaId: string;

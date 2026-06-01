@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
-
-const _uuid = Uuid();
 
 class InversionistaForm extends StatefulWidget {
   final Map<String, dynamic>? initialInversionista;
@@ -24,6 +21,7 @@ class _InversionistaFormState extends State<InversionistaForm> {
   late TextEditingController _nombreController;
   late TextEditingController _telefonoController;
   late TextEditingController _emailController;
+  late bool _tieneTerminal;
 
   @override
   void initState() {
@@ -31,6 +29,7 @@ class _InversionistaFormState extends State<InversionistaForm> {
     _nombreController = TextEditingController(text: widget.initialInversionista?['nombre'] ?? '');
     _telefonoController = TextEditingController(text: widget.initialInversionista?['telefono'] ?? '');
     _emailController = TextEditingController(text: widget.initialInversionista?['email'] ?? '');
+    _tieneTerminal = widget.initialInversionista?['tieneTerminal'] ?? false;
   }
 
   @override
@@ -47,6 +46,7 @@ class _InversionistaFormState extends State<InversionistaForm> {
         'nombre': _nombreController.text.trim(),
         'telefono': _telefonoController.text.trim().isEmpty ? null : _telefonoController.text.trim(),
         'email': _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+        'tieneTerminal': _tieneTerminal,
       });
     }
   }
@@ -81,6 +81,23 @@ class _InversionistaFormState extends State<InversionistaForm> {
             controller: _emailController,
             decoration: const InputDecoration(labelText: 'Email'),
             keyboardType: TextInputType.emailAddress,
+          ),
+          const SizedBox(height: 12),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Row(
+              children: [
+                const Icon(Icons.credit_card, size: 18),
+                const SizedBox(width: 8),
+                Text('Tiene terminal de tarjeta', style: theme.textTheme.bodyMedium),
+              ],
+            ),
+            subtitle: Text(
+              'Recibe los pagos con tarjeta del día',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+            ),
+            value: _tieneTerminal,
+            onChanged: (v) => setState(() => _tieneTerminal = v),
           ),
           const SizedBox(height: 24),
           Row(
