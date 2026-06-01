@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:zapateria_flutter/components/zapato_image.dart';
 import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/services/venta_service.dart';
 import 'package:zapateria_flutter/utils/price_utils.dart';
@@ -143,18 +144,7 @@ class _CierreCajaScreenState extends State<CierreCajaScreen> {
             else ...[
               Text('Desglose por inversionista', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
-              if (kIsWeb)
-                _buildWebDesglose(theme)
-              else
-                ...dia.inversionistas.map((inv) => Card(
-                      margin: const EdgeInsets.only(bottom: 4),
-                      child: ListTile(
-                        title: Text(inv.nombre, style: theme.textTheme.titleMedium),
-                        subtitle: Text('${inv.totalItems} artículo${inv.totalItems == 1 ? '' : 's'}'),
-                        trailing: Text('\$${formatPrice(inv.total)}',
-                            style: theme.textTheme.titleMedium?.copyWith(color: Colors.green.shade700)),
-                      ),
-                    )),
+              ...dia.inversionistas.map((inv) => _buildInversionistaAcordeon(inv, theme)),
             ],
           ],
         ),
@@ -162,38 +152,98 @@ class _CierreCajaScreenState extends State<CierreCajaScreen> {
     );
   }
 
-  Widget _buildWebDesglose(ThemeData theme) {
-    final invs = _diaSeleccionado?.inversionistas ?? [];
+  Widget _buildInversionistaAcordeon(CierreCajaInversionista inv, ThemeData theme) {
     return Card(
-      child: Column(
+      margin: const EdgeInsets.only(bottom: 6),
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        shape: const Border(),
+        collapsedShape: const Border(),
+        tilePadding: EdgeInsets.symmetric(horizontal: kIsWeb ? 20 : 16, vertical: 4),
+        childrenPadding: EdgeInsets.zero,
+        title: kIsWeb ? _buildInvWebHeader(inv, theme) : _buildInvMobileHeader(inv, theme),
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            ),
-            child: Row(
+          const Divider(height: 1),
+          _buildArticulosHeader(theme),
+          ...inv.articulos.map((art) => _buildArticuloRow(art, theme)),
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInvWebHeader(CierreCajaInversionista inv, ThemeData theme) {
+    return Row(
+      children: [
+        Expanded(flex: 3, child: Text(inv.nombre, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
+        Expanded(child: Text('${inv.totalItems} art.', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium)),
+        Expanded(child: Text('\$${formatPrice(inv.total)}', textAlign: TextAlign.end,
+            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.green.shade700, fontWeight: FontWeight.w600))),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  Widget _buildInvMobileHeader(CierreCajaInversionista inv, ThemeData theme) {
+    return Row(
+      children: [
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(inv.nombre, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            Text('${inv.totalItems} artículo${inv.totalItems == 1 ? '' : 's'}',
+                style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
+          ],
+        )),
+        Text('\$${formatPrice(inv.total)}',
+            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.green.shade700, fontWeight: FontWeight.w600)),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  Widget _buildArticulosHeader(ThemeData theme) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: kIsWeb ? 20 : 16, vertical: 6),
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Row(
+        children: [
+          SizedBox(width: kIsWeb ? 44 : 38),
+          Expanded(flex: 4, child: Text('Artículo', style: theme.textTheme.labelSmall?.copyWith(color: theme.hintColor))),
+          SizedBox(width: 44, child: Text('Cant.', style: theme.textTheme.labelSmall?.copyWith(color: theme.hintColor), textAlign: TextAlign.center)),
+          SizedBox(width: kIsWeb ? 90 : 72, child: Text('Precio', style: theme.textTheme.labelSmall?.copyWith(color: theme.hintColor), textAlign: TextAlign.end)),
+          SizedBox(width: kIsWeb ? 90 : 72, child: Text('Subtotal', style: theme.textTheme.labelSmall?.copyWith(color: theme.hintColor), textAlign: TextAlign.end)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildArticuloRow(CierreCajaArticulo art, ThemeData theme) {
+    final imgSize = kIsWeb ? 36.0 : 32.0;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: kIsWeb ? 20 : 16, vertical: 8),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: theme.dividerColor, width: 0.5)),
+      ),
+      child: Row(
+        children: [
+          ZapatoImage(imageUrl: art.foto, height: imgSize, width: imgSize, borderRadius: 6),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 4,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(flex: 3, child: Text('Inversionista', style: theme.textTheme.labelLarge)),
-                Expanded(child: Text('Artículos', style: theme.textTheme.labelLarge, textAlign: TextAlign.center)),
-                Expanded(child: Text('Total', style: theme.textTheme.labelLarge, textAlign: TextAlign.end)),
+                Text(art.nombre, style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                if (art.modelo != null)
+                  Text(art.modelo!, style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor, fontSize: 11), overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
-          ...invs.map((inv) => Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: theme.dividerColor, width: 0.5)),
-            ),
-            child: Row(
-              children: [
-                Expanded(flex: 3, child: Text(inv.nombre, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500))),
-                Expanded(child: Text('${inv.totalItems}', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium)),
-                Expanded(child: Text('\$${formatPrice(inv.total)}', textAlign: TextAlign.end, style: theme.textTheme.bodyMedium?.copyWith(color: Colors.green.shade700, fontWeight: FontWeight.w600))),
-              ],
-            ),
-          )),
+          SizedBox(width: 44, child: Text('${art.cantidad}', textAlign: TextAlign.center, style: theme.textTheme.bodySmall)),
+          SizedBox(width: kIsWeb ? 90 : 72, child: Text('\$${formatPrice(art.precioUnitario)}', textAlign: TextAlign.end, style: theme.textTheme.bodySmall)),
+          SizedBox(width: kIsWeb ? 90 : 72, child: Text('\$${formatPrice(art.subtotal)}', textAlign: TextAlign.end,
+              style: theme.textTheme.bodySmall?.copyWith(color: Colors.green.shade700, fontWeight: FontWeight.w600))),
         ],
       ),
     );

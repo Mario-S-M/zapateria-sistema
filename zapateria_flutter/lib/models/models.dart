@@ -366,25 +366,65 @@ class VentaModel {
   }
 }
 
+class CierreCajaArticulo {
+  final String? zapatoId;
+  final String nombre;
+  final String? modelo;
+  final String? foto;
+  final int cantidad;
+  final double precioUnitario;
+  final double subtotal;
+
+  CierreCajaArticulo({
+    this.zapatoId,
+    required this.nombre,
+    this.modelo,
+    this.foto,
+    required this.cantidad,
+    required this.precioUnitario,
+    required this.subtotal,
+  });
+
+  factory CierreCajaArticulo.fromJson(Map<String, dynamic> json) {
+    return CierreCajaArticulo(
+      zapatoId: json['zapatoId'] as String?,
+      nombre: json['nombre'] as String? ?? 'Artículo',
+      modelo: json['modelo'] as String?,
+      foto: json['foto'] as String?,
+      cantidad: (json['cantidad'] as num).toInt(),
+      precioUnitario: double.parse(json['precioUnitario'].toString()),
+      subtotal: double.parse(json['subtotal'].toString()),
+    );
+  }
+}
+
 class CierreCajaInversionista {
   final String? inversionistaId;
   final String nombre;
   final int totalItems;
   final double total;
+  final List<CierreCajaArticulo> articulos;
 
   CierreCajaInversionista({
     this.inversionistaId,
     required this.nombre,
     required this.totalItems,
     required this.total,
+    this.articulos = const [],
   });
 
   factory CierreCajaInversionista.fromJson(Map<String, dynamic> json) {
+    final artJson = json['articulos'] as List? ?? [];
+    final articulos = artJson
+        .whereType<Map<String, dynamic>>()
+        .map((a) => CierreCajaArticulo.fromJson(a))
+        .toList();
     return CierreCajaInversionista(
       inversionistaId: json['inversionistaId'] as String?,
       nombre: json['nombre'] as String? ?? 'Sin Inversionista',
       totalItems: (json['totalItems'] as num).toInt(),
       total: double.parse(json['total'].toString()),
+      articulos: articulos,
     );
   }
 }

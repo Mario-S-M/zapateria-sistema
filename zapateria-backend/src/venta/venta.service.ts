@@ -126,7 +126,6 @@ export class VentaService {
 
   async getCierreCaja(fechaInicio?: string, fechaFin?: string) {
     try {
-      // Group by the shoe's investor (whose shoe was sold), not the sale's investor
       let query = this.ventaItemRepository
         .createQueryBuilder('vi')
         .innerJoin('vi.venta', 'v')
@@ -135,54 +134,73 @@ export class VentaService {
         .select('TO_CHAR(v.fecha, \'YYYY-MM-DD\')', 'fecha')
         .addSelect('COALESCE(i.id, z."inversionistaId")', 'inversionistaId')
         .addSelect('COALESCE(i.nombre, \'Sin Inversionista\')', 'inversionistaNombre')
-        .addSelect('COUNT(vi.id)', 'totalItems')
-        .addSelect('SUM(vi.subtotal)', 'totalVendido');
+        .addSelect('vi.id', 'itemId')
+        .addSelect('vi.cantidad', 'cantidad')
+        .addSelect('vi.precioUnitario', 'precioUnitario')
+        .addSelect('vi.subtotal', 'subtotal')
+        .addSelect('z.id', 'zapatoId')
+        .addSelect('z.nombre', 'zapatoNombre')
+        .addSelect('z.modelo', 'zapatoModelo')
+        .addSelect('z.foto', 'zapatoFoto');
 
       if (fechaInicio) {
         query = query.andWhere(`DATE(v.fecha) >= :fechaInicio`, { fechaInicio });
       }
-
       if (fechaFin) {
         query = query.andWhere(`DATE(v.fecha) <= :fechaFin`, { fechaFin });
       }
 
-      const resultados = await query
-        .groupBy('TO_CHAR(v.fecha, \'YYYY-MM-DD\')')
-        .addGroupBy('COALESCE(i.id, z."inversionistaId")')
-        .addGroupBy('COALESCE(i.nombre, \'Sin Inversionista\')')
+      const rows = await query
         .orderBy('TO_CHAR(v.fecha, \'YYYY-MM-DD\')', 'DESC')
         .addOrderBy('COALESCE(i.nombre, \'Sin Inversionista\')', 'ASC')
         .getRawMany();
 
-      // Agrupar por fecha
-      const reportePorFecha = resultados.reduce((acc, item) => {
-        const fecha = item.fecha;
-        if (!acc[fecha]) {
-          acc[fecha] = {
-            fecha,
-            inversionistas: [],
-            totalDia: 0,
+      // Group by fecha → investor in TypeScript to include individual articles
+      const byFecha: Record<string, any> = {};
+
+      for (const row of rows) {
+        const fecha = row.fecha;
+        if (!byFecha[fecha]) {
+          byFecha[fecha] = { fecha, inversionistas: {}, totalDia: 0 };
+        }
+
+        const invKey = row.inversionistaId ?? `_${row.inversionistaNombre}`;
+        if (!byFecha[fecha].inversionistas[invKey]) {
+          byFecha[fecha].inversionistas[invKey] = {
+            inversionistaId: row.inversionistaId ?? null,
+            nombre: row.inversionistaNombre || 'Sin Inversionista',
+            totalItems: 0,
+            total: 0,
+            articulos: [],
           };
         }
 
-        const totalInversionista = parseFloat(item.totalVendido) || 0;
-        
-        acc[fecha].inversionistas.push({
-          inversionistaId: item.inversionistaId,
-          nombre: item.inversionistaNombre || 'Sin Inversionista',
-          totalItems: parseInt(item.totalItems) || 0,
-          total: totalInversionista,
+        const inv = byFecha[fecha].inversionistas[invKey];
+        const subtotal = parseFloat(row.subtotal) || 0;
+        const cantidad = parseInt(row.cantidad) || 1;
+
+        inv.totalItems += cantidad;
+        inv.total += subtotal;
+        inv.articulos.push({
+          zapatoId: row.zapatoId ?? null,
+          nombre: row.zapatoNombre || 'Artículo',
+          modelo: row.zapatoModelo ?? null,
+          foto: row.zapatoFoto ?? null,
+          cantidad,
+          precioUnitario: parseFloat(row.precioUnitario) || 0,
+          subtotal,
         });
 
-        acc[fecha].totalDia += totalInversionista;
+        byFecha[fecha].totalDia += subtotal;
+      }
 
-        return acc;
-      }, {});
-
-      return Object.values(reportePorFecha);
+      return Object.values(byFecha).map((d: any) => ({
+        fecha: d.fecha,
+        totalDia: d.totalDia,
+        inversionistas: Object.values(d.inversionistas),
+      }));
     } catch (error) {
       console.error('❌ Error in getCierreCaja:', error);
-      // Return empty array on error to prevent crashes
       return [];
     }
   }
