@@ -19,16 +19,21 @@ class CartScreen extends StatefulWidget {
 class _CartScreenState extends State<CartScreen> {
   List<InversionistaModel> _inversionistas = [];
   final TextEditingController _montoTarjetaCtrl = TextEditingController();
+  final TextEditingController _billeteCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadInversionistas();
+    // Rebuild on every keystroke so calculated values update in real time
+    _montoTarjetaCtrl.addListener(() => setState(() {}));
+    _billeteCtrl.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
     _montoTarjetaCtrl.dispose();
+    _billeteCtrl.dispose();
     super.dispose();
   }
 
@@ -37,6 +42,13 @@ class _CartScreenState extends State<CartScreen> {
       final list = await inversionistaService.getActivos();
       if (mounted) setState(() => _inversionistas = list);
     } catch (_) {}
+  }
+
+  double get _montoTarjeta =>
+      double.tryParse(_montoTarjetaCtrl.text.replaceAll(',', '.')) ?? 0;
+
+  double _montoEfectivo(double total) {
+    return total - _montoTarjeta;
   }
 
   Future<void> _checkout(BuildContext context) async {
@@ -54,7 +66,7 @@ class _CartScreenState extends State<CartScreen> {
     if (cart.metodoPago == MetodoPago.tarjeta) {
       montoTarjeta = cart.total;
     } else if (cart.metodoPago == MetodoPago.mixto) {
-      montoTarjeta = double.tryParse(_montoTarjetaCtrl.text.replaceAll(',', '.')) ?? 0;
+      montoTarjeta = _montoTarjeta;
       if (montoTarjeta <= 0) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingresa el monto con tarjeta')));
         return;
@@ -81,6 +93,7 @@ class _CartScreenState extends State<CartScreen> {
       );
       cart.clearCart();
       _montoTarjetaCtrl.clear();
+      _billeteCtrl.clear();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Venta registrada exitosamente')));
       }
@@ -189,12 +202,7 @@ class _CartScreenState extends State<CartScreen> {
                       children: [
                         Text('Resumen', style: theme.textTheme.titleLarge),
                         const Divider(height: 24),
-                        _SummaryControls(
-                          cart: cart,
-                          inversionistas: _inversionistas,
-                          montoTarjetaCtrl: _montoTarjetaCtrl,
-                          onChangeTipo: () => _showTipoPrecioSheet(context, cart),
-                        ),
+                        _buildPaymentControls(context, cart, theme),
                         const Divider(height: 24),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -275,42 +283,35 @@ class _CartScreenState extends State<CartScreen> {
           cart: cart,
           theme: theme,
           inversionistas: _inversionistas,
-          montoTarjetaCtrl: _montoTarjetaCtrl,
+          paymentControls: _buildPaymentControls(context, cart, theme),
           onCheckout: () => _checkout(context),
           onChangeTipo: () => _showTipoPrecioSheet(context, cart),
         ),
       ],
     );
   }
-}
 
-// ── Controles de tipo precio + método pago ────────────────────────────────────
+  // ── Payment controls (shared between web and mobile) ──────────────────────
 
-class _SummaryControls extends StatelessWidget {
-  final CartProvider cart;
-  final List<InversionistaModel> inversionistas;
-  final TextEditingController montoTarjetaCtrl;
-  final VoidCallback onChangeTipo;
+  Widget _buildPaymentControls(BuildContext context, CartProvider cart, ThemeData theme) {
+    final efectivoAmount = cart.metodoPago == MetodoPago.mixto
+        ? _montoEfectivo(cart.total)
+        : (cart.metodoPago == MetodoPago.efectivo ? cart.total : 0.0);
 
-  const _SummaryControls({
-    required this.cart,
-    required this.inversionistas,
-    required this.montoTarjetaCtrl,
-    required this.onChangeTipo,
-  });
+    final billete = double.tryParse(_billeteCtrl.text.replaceAll(',', '.')) ?? 0;
+    final cambio = billete > 0 ? billete - efectivoAmount : 0.0;
+    final cambioValido = cambio >= 0;
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Tipo precio
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('Tipo de precio:', style: theme.textTheme.bodyMedium),
             TextButton(
-              onPressed: onChangeTipo,
+              onPressed: () => _showTipoPrecioSheet(context, cart),
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 backgroundColor: theme.colorScheme.primaryContainer,
@@ -319,8 +320,7 @@ class _SummaryControls extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(_tipoPrecioLabel(cart.tipoPrecio),
-                      style: TextStyle(
-                          color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
+                      style: TextStyle(color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
                   const SizedBox(width: 4),
                   Icon(Icons.arrow_drop_down, color: theme.colorScheme.primary, size: 18),
                 ],
@@ -328,7 +328,7 @@ class _SummaryControls extends StatelessWidget {
             ),
           ],
         ),
-        if (cart.tipoPrecio == TipoPrecio.inversionista && inversionistas.isNotEmpty) ...[
+        if (cart.tipoPrecio == TipoPrecio.inversionista && _inversionistas.isNotEmpty) ...[
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             value: cart.inversionistaId,
@@ -338,32 +338,128 @@ class _SummaryControls extends StatelessWidget {
               isDense: true,
               contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
-            items: inversionistas
+            items: _inversionistas
                 .map((inv) => DropdownMenuItem(value: inv.id, child: Text(inv.nombre)))
                 .toList(),
             onChanged: (id) => context.read<CartProvider>().setInversionista(id),
           ),
         ],
         const SizedBox(height: 12),
+        // Método de pago
         Text('Método de pago:', style: theme.textTheme.bodyMedium),
         const SizedBox(height: 8),
-        _MetodoPagoSelector(cart: cart),
+        SegmentedButton<MetodoPago>(
+          showSelectedIcon: false,
+          style: SegmentedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            visualDensity: VisualDensity.compact,
+          ),
+          segments: const [
+            ButtonSegment(
+              value: MetodoPago.efectivo,
+              icon: Icon(Icons.payments_outlined, size: 16),
+              label: Text('Efectivo', style: TextStyle(fontSize: 12)),
+            ),
+            ButtonSegment(
+              value: MetodoPago.tarjeta,
+              icon: Icon(Icons.credit_card, size: 16),
+              label: Text('Tarjeta', style: TextStyle(fontSize: 12)),
+            ),
+            ButtonSegment(
+              value: MetodoPago.mixto,
+              icon: Icon(Icons.swap_horiz, size: 16),
+              label: Text('Mixto', style: TextStyle(fontSize: 12)),
+            ),
+          ],
+          selected: {cart.metodoPago},
+          onSelectionChanged: (s) {
+            context.read<CartProvider>().setMetodoPago(s.first);
+            _montoTarjetaCtrl.clear();
+            _billeteCtrl.clear();
+          },
+        ),
+
+        // Monto tarjeta (solo MIXTO)
         if (cart.metodoPago == MetodoPago.mixto) ...[
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: montoTarjetaCtrl,
+          const SizedBox(height: 10),
+          TextField(
+            controller: _montoTarjetaCtrl,
             decoration: InputDecoration(
               labelText: 'Monto con tarjeta',
-              prefixText: '\$',
+              prefixText: '\$ ',
               border: const OutlineInputBorder(),
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              helperText: 'Resto en efectivo: \$${formatPrice(cart.total - (double.tryParse(montoTarjetaCtrl.text.replaceAll(",", ".")) ?? 0))}',
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              suffixText: _montoTarjeta > 0
+                  ? 'Efectivo: \$${formatPrice(_montoEfectivo(cart.total))}'
+                  : null,
+              suffixStyle: TextStyle(color: theme.hintColor, fontSize: 12),
             ),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.,]'))],
           ),
+          if (_montoTarjeta > 0) ...[
+            const SizedBox(height: 6),
+            _InfoRow(
+              label: 'Monto tarjeta:',
+              value: '\$${formatPrice(_montoTarjeta)}',
+              color: Colors.blue.shade700,
+            ),
+            _InfoRow(
+              label: 'Monto efectivo:',
+              value: '\$${formatPrice(_montoEfectivo(cart.total))}',
+              color: theme.colorScheme.onSurface,
+            ),
+          ],
         ],
+
+        // Campo billete (EFECTIVO y MIXTO)
+        if (cart.metodoPago != MetodoPago.tarjeta) ...[
+          const SizedBox(height: 10),
+          TextField(
+            controller: _billeteCtrl,
+            decoration: InputDecoration(
+              labelText: 'Cliente paga con',
+              prefixText: '\$ ',
+              border: const OutlineInputBorder(),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              hintText: 'Ingresa el billete',
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.,]'))],
+          ),
+          if (billete > 0) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: cambioValido ? Colors.green.shade50 : Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: cambioValido ? Colors.green.shade200 : Colors.red.shade200,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    cambioValido ? 'Cambio:' : 'Falta:',
+                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    '\$${formatPrice(cambio.abs())}',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: cambioValido ? Colors.green.shade700 : Colors.red.shade700,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+
         const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -443,7 +539,7 @@ class _CartBottomBar extends StatelessWidget {
   final CartProvider cart;
   final ThemeData theme;
   final List<InversionistaModel> inversionistas;
-  final TextEditingController montoTarjetaCtrl;
+  final Widget paymentControls;
   final VoidCallback onCheckout;
   final VoidCallback onChangeTipo;
 
@@ -451,7 +547,7 @@ class _CartBottomBar extends StatelessWidget {
     required this.cart,
     required this.theme,
     required this.inversionistas,
-    required this.montoTarjetaCtrl,
+    required this.paymentControls,
     required this.onCheckout,
     required this.onChangeTipo,
   });
@@ -465,56 +561,7 @@ class _CartBottomBar extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Tipo de precio:', style: theme.textTheme.titleMedium),
-                TextButton(
-                  onPressed: onChangeTipo,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(_tipoPrecioLabel(cart.tipoPrecio),
-                          style: TextStyle(
-                              color: theme.colorScheme.primary, fontWeight: FontWeight.bold)),
-                      const Icon(Icons.arrow_drop_down),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            if (cart.tipoPrecio == TipoPrecio.inversionista && inversionistas.isNotEmpty)
-              DropdownButtonFormField<String>(
-                value: cart.inversionistaId,
-                decoration: const InputDecoration(
-                  labelText: 'Inversionista',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                items: inversionistas
-                    .map((inv) => DropdownMenuItem(value: inv.id, child: Text(inv.nombre)))
-                    .toList(),
-                onChanged: (id) => context.read<CartProvider>().setInversionista(id),
-              ),
-            const SizedBox(height: 8),
-            _MetodoPagoSelector(cart: cart),
-            if (cart.metodoPago == MetodoPago.mixto) ...[
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: montoTarjetaCtrl,
-                decoration: InputDecoration(
-                  labelText: 'Monto con tarjeta',
-                  prefixText: '\$',
-                  border: const OutlineInputBorder(),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  helperText: 'Resto en efectivo: \$${formatPrice(cart.total - (double.tryParse(montoTarjetaCtrl.text.replaceAll(",", ".")) ?? 0))}',
-                ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.,]'))],
-              ),
-            ],
+            paymentControls,
             const Divider(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -537,44 +584,30 @@ class _CartBottomBar extends StatelessWidget {
   }
 }
 
-// ── Selector de método de pago ────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-class _MetodoPagoSelector extends StatelessWidget {
-  final CartProvider cart;
-  const _MetodoPagoSelector({required this.cart});
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _InfoRow({required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    return SegmentedButton<MetodoPago>(
-      showSelectedIcon: false,
-      style: SegmentedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        visualDensity: VisualDensity.compact,
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
+          Text(value, style: theme.textTheme.bodySmall?.copyWith(color: color, fontWeight: FontWeight.w600)),
+        ],
       ),
-      segments: const [
-        ButtonSegment(
-          value: MetodoPago.efectivo,
-          icon: Icon(Icons.payments_outlined, size: 16),
-          label: Text('Efectivo', style: TextStyle(fontSize: 12)),
-        ),
-        ButtonSegment(
-          value: MetodoPago.tarjeta,
-          icon: Icon(Icons.credit_card, size: 16),
-          label: Text('Tarjeta', style: TextStyle(fontSize: 12)),
-        ),
-        ButtonSegment(
-          value: MetodoPago.mixto,
-          icon: Icon(Icons.swap_horiz, size: 16),
-          label: Text('Mixto', style: TextStyle(fontSize: 12)),
-        ),
-      ],
-      selected: {cart.metodoPago},
-      onSelectionChanged: (s) => context.read<CartProvider>().setMetodoPago(s.first),
     );
   }
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 String _tipoPrecioLabel(TipoPrecio tipo) {
   switch (tipo) {
