@@ -267,13 +267,29 @@ export class VentaService {
           fechaData.inversionistas[terminalId].total -= totalDeuda;
         }
 
+        // Compute payment method totals for the day
+        let totalEfectivo = 0;
+        let totalTarjeta = 0;
+        for (const ventaCard of Object.values(fechaData.ventasCard) as any[]) {
+          const ventaTotal = ventaCard.items.reduce(
+            (s: number, i: any) => s + i.subtotal,
+            0,
+          );
+          totalTarjeta += ventaCard.montoTarjeta;
+          totalEfectivo += ventaTotal - ventaCard.montoTarjeta;
+        }
+
         fechaData.deudasTarjeta = deudasArr;
         fechaData.terminalNombre = terminalNombre;
+        fechaData.totalEfectivo = totalEfectivo;
+        fechaData.totalTarjeta = totalTarjeta;
       }
 
       return Object.values(byFecha).map((d: any) => ({
         fecha: d.fecha,
         totalDia: d.totalDia,
+        totalEfectivo: d.totalEfectivo ?? d.totalDia,
+        totalTarjeta: d.totalTarjeta ?? 0,
         inversionistas: Object.values(d.inversionistas),
         deudasTarjeta: d.deudasTarjeta ?? [],
         terminalNombre: d.terminalNombre ?? null,

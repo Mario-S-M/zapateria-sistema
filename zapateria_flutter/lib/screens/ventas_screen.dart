@@ -6,6 +6,32 @@ import 'package:zapateria_flutter/services/venta_service.dart';
 import 'package:zapateria_flutter/utils/price_utils.dart';
 import 'package:zapateria_flutter/screens/venta_edit_screen.dart';
 
+// ── Payment method helpers ────────────────────────────────────────────────────
+
+String _metodoPagoLabel(MetodoPago mp) {
+  switch (mp) {
+    case MetodoPago.efectivo: return 'EFECTIVO';
+    case MetodoPago.tarjeta:  return 'TARJETA';
+    case MetodoPago.mixto:    return 'MIXTO';
+  }
+}
+
+MaterialColor _metodoPagoColor(MetodoPago mp) {
+  switch (mp) {
+    case MetodoPago.efectivo: return Colors.green;
+    case MetodoPago.tarjeta:  return Colors.blue;
+    case MetodoPago.mixto:    return Colors.orange;
+  }
+}
+
+IconData _metodoPagoIcon(MetodoPago mp) {
+  switch (mp) {
+    case MetodoPago.efectivo: return Icons.payments_outlined;
+    case MetodoPago.tarjeta:  return Icons.credit_card;
+    case MetodoPago.mixto:    return Icons.swap_horiz;
+  }
+}
+
 class VentasScreen extends StatefulWidget {
   const VentasScreen({super.key});
 
@@ -179,7 +205,7 @@ class _VentaAccordion extends StatelessWidget {
         ),
         children: [
           const Divider(height: 1),
-          _ItemsExpandedList(items: venta.items, isWeb: isWeb),
+          _ItemsExpandedList(venta: venta, isWeb: isWeb),
         ],
       ),
     );
@@ -212,6 +238,10 @@ class _WebTitle extends StatelessWidget {
         Expanded(
           flex: 2,
           child: _TipoBadge(tipo: venta.tipoPrecioString),
+        ),
+        Expanded(
+          flex: 3,
+          child: _MetodoPagoBadge(venta: venta),
         ),
         if (venta.inversionista != null)
           Expanded(
@@ -259,18 +289,12 @@ class _MobileTitle extends StatelessWidget {
         Row(
           children: [
             Text(_formatDate(venta.fecha), style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             _TipoBadge(tipo: venta.tipoPrecioString),
           ],
         ),
-        const SizedBox(height: 2),
-        Text(
-          '\$${formatPrice(venta.total)}',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: Colors.green.shade700,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        const SizedBox(height: 3),
+        _MetodoPagoBadge(venta: venta),
       ],
     );
   }
@@ -279,20 +303,20 @@ class _MobileTitle extends StatelessWidget {
 // ── Lista de ítems expandida ──────────────────────────────────────────────────
 
 class _ItemsExpandedList extends StatelessWidget {
-  final List<VentaItemModel> items;
+  final VentaModel venta;
   final bool isWeb;
 
-  const _ItemsExpandedList({required this.items, required this.isWeb});
+  const _ItemsExpandedList({required this.venta, required this.isWeb});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final items = venta.items;
 
     return Container(
       color: theme.colorScheme.surfaceContainerLowest ?? theme.colorScheme.surface,
       child: Column(
         children: [
-          // Encabezado de la sub-tabla
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
@@ -319,6 +343,8 @@ class _ItemsExpandedList extends StatelessWidget {
           ),
           const Divider(height: 1, indent: 16, endIndent: 16),
           ...items.map((item) => _ItemRow(item: item, isWeb: isWeb)),
+          // Payment breakdown footer
+          _PaymentBreakdown(venta: venta),
           const SizedBox(height: 8),
         ],
       ),
@@ -394,6 +420,109 @@ class _ItemRow extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Método de pago badge ──────────────────────────────────────────────────────
+
+class _MetodoPagoBadge extends StatelessWidget {
+  final VentaModel venta;
+  const _MetodoPagoBadge({required this.venta});
+
+  @override
+  Widget build(BuildContext context) {
+    final mp = venta.metodoPago;
+    final color = _metodoPagoColor(mp);
+    final icon = _metodoPagoIcon(mp);
+    final label = _metodoPagoLabel(mp);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+          decoration: BoxDecoration(
+            color: color.shade50,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: color.shade200),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 10, color: color.shade700),
+              const SizedBox(width: 3),
+              Text(label,
+                  style: TextStyle(fontSize: 10, color: color.shade700, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+        if (mp == MetodoPago.mixto) ...[
+          const SizedBox(height: 2),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.credit_card, size: 10, color: Colors.blue.shade600),
+              const SizedBox(width: 2),
+              Text('\$${formatPrice(venta.montoTarjeta)}',
+                  style: TextStyle(fontSize: 10, color: Colors.blue.shade600)),
+              const SizedBox(width: 5),
+              Icon(Icons.payments_outlined, size: 10, color: Colors.green.shade600),
+              const SizedBox(width: 2),
+              Text('\$${formatPrice(venta.total - venta.montoTarjeta)}',
+                  style: TextStyle(fontSize: 10, color: Colors.green.shade600)),
+            ],
+          ),
+        ] else if (mp == MetodoPago.tarjeta) ...[
+          const SizedBox(height: 2),
+          Text('\$${formatPrice(venta.montoTarjeta)}',
+              style: TextStyle(fontSize: 10, color: Colors.blue.shade600)),
+        ],
+      ],
+    );
+  }
+}
+
+// ── Payment breakdown footer (inside expanded accordion) ──────────────────────
+
+class _PaymentBreakdown extends StatelessWidget {
+  final VentaModel venta;
+  const _PaymentBreakdown({required this.venta});
+
+  @override
+  Widget build(BuildContext context) {
+    final mp = venta.metodoPago;
+    final color = _metodoPagoColor(mp);
+    final theme = Theme.of(context);
+
+    String text;
+    if (mp == MetodoPago.efectivo) {
+      text = 'Pago en efectivo';
+    } else if (mp == MetodoPago.tarjeta) {
+      text = 'Pago con tarjeta: \$${formatPrice(venta.montoTarjeta)}';
+    } else {
+      final efectivo = venta.total - venta.montoTarjeta;
+      text = 'Tarjeta: \$${formatPrice(venta.montoTarjeta)}   Efectivo: \$${formatPrice(efectivo)}';
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.shade100),
+      ),
+      child: Row(
+        children: [
+          Icon(_metodoPagoIcon(mp), size: 14, color: color.shade700),
+          const SizedBox(width: 6),
+          Text(text,
+              style: theme.textTheme.bodySmall?.copyWith(
+                  color: color.shade700, fontWeight: FontWeight.w600)),
         ],
       ),
     );

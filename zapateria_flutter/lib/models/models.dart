@@ -492,6 +492,8 @@ class CierreCajaDia {
   final String fecha;
   final List<CierreCajaInversionista> inversionistas;
   final double totalDia;
+  final double totalEfectivo;
+  final double totalTarjeta;
   final List<CierreCajaDeuda> deudasTarjeta;
   final String? terminalNombre;
 
@@ -499,6 +501,8 @@ class CierreCajaDia {
     required this.fecha,
     required this.inversionistas,
     required this.totalDia,
+    this.totalEfectivo = 0,
+    this.totalTarjeta = 0,
     this.deudasTarjeta = const [],
     this.terminalNombre,
   });
@@ -516,10 +520,14 @@ class CierreCajaDia {
         .map((d) => CierreCajaDeuda.fromJson(d))
         .toList();
 
+    final totalDia = double.parse(json['totalDia'].toString());
+
     return CierreCajaDia(
       fecha: json['fecha'] as String,
       inversionistas: inversionistas,
-      totalDia: double.parse(json['totalDia'].toString()),
+      totalDia: totalDia,
+      totalEfectivo: double.parse((json['totalEfectivo'] ?? totalDia).toString()),
+      totalTarjeta: double.parse((json['totalTarjeta'] ?? 0).toString()),
       deudasTarjeta: deudasTarjeta,
       terminalNombre: json['terminalNombre'] as String?,
     );

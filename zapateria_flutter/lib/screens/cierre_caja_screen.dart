@@ -123,6 +123,28 @@ class _CierreCajaScreenState extends State<CierreCajaScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    if (!sinVentas && (dia.totalTarjeta > 0 || dia.totalEfectivo > 0)) ...[
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          if (dia.totalEfectivo > 0)
+                            _PayMethodChip(
+                              icon: Icons.payments_outlined,
+                              label: 'Efectivo',
+                              amount: dia.totalEfectivo,
+                              color: Colors.green,
+                            ),
+                          if (dia.totalTarjeta > 0)
+                            _PayMethodChip(
+                              icon: Icons.credit_card,
+                              label: 'Tarjeta',
+                              amount: dia.totalTarjeta,
+                              color: Colors.blue,
+                            ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -328,10 +350,47 @@ class _CierreCajaScreenState extends State<CierreCajaScreen> {
     }
   }
 
-String _formatDate(DateTime d) {
+  String _formatDate(DateTime d) {
     const dias = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
     const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
                    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
     return '${dias[d.weekday - 1]}, ${d.day} de ${meses[d.month - 1]} de ${d.year}';
+  }
+}
+
+class _PayMethodChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final double amount;
+  final MaterialColor color;
+
+  const _PayMethodChip({
+    required this.icon,
+    required this.label,
+    required this.amount,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.shade50,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color.shade700),
+          const SizedBox(width: 5),
+          Text(
+            '$label: \$${formatPrice(amount)}',
+            style: TextStyle(fontSize: 12, color: color.shade700, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
   }
 }
