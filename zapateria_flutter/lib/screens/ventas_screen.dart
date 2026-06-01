@@ -404,8 +404,10 @@ class _ItemRow extends StatelessWidget {
 
 String _formatDate(String fecha) {
   try {
-    final d = DateTime.parse(fecha);
-    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    final d = DateTime.parse(fecha).toLocal();
+    final date = '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    final time = '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    return '$date $time';
   } catch (_) {
     return fecha;
   }

@@ -374,6 +374,7 @@ class CierreCajaArticulo {
   final int cantidad;
   final double precioUnitario;
   final double subtotal;
+  final String? hora;
 
   CierreCajaArticulo({
     this.zapatoId,
@@ -383,6 +384,7 @@ class CierreCajaArticulo {
     required this.cantidad,
     required this.precioUnitario,
     required this.subtotal,
+    this.hora,
   });
 
   factory CierreCajaArticulo.fromJson(Map<String, dynamic> json) {
@@ -394,6 +396,7 @@ class CierreCajaArticulo {
       cantidad: (json['cantidad'] as num).toInt(),
       precioUnitario: double.parse(json['precioUnitario'].toString()),
       subtotal: double.parse(json['subtotal'].toString()),
+      hora: json['hora'] as String?,
     );
   }
 }

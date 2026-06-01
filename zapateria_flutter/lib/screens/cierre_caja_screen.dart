@@ -237,6 +237,8 @@ class _CierreCajaScreenState extends State<CierreCajaScreen> {
                 Text(art.nombre, style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
                 if (art.modelo != null)
                   Text(art.modelo!, style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor, fontSize: 11), overflow: TextOverflow.ellipsis),
+                if (art.hora != null)
+                  Text(_formatHora(art.hora!), style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor, fontSize: 11)),
               ],
             ),
           ),
@@ -247,6 +249,15 @@ class _CierreCajaScreenState extends State<CierreCajaScreen> {
         ],
       ),
     );
+  }
+
+  String _formatHora(String hora) {
+    try {
+      final d = DateTime.parse(hora).toLocal();
+      return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return '';
+    }
   }
 
 String _formatDate(DateTime d) {

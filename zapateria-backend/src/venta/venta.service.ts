@@ -141,7 +141,8 @@ export class VentaService {
         .addSelect('z.id', 'zapatoId')
         .addSelect('z.nombre', 'zapatoNombre')
         .addSelect('z.modelo', 'zapatoModelo')
-        .addSelect('z.foto', 'zapatoFoto');
+        .addSelect('z.foto', 'zapatoFoto')
+        .addSelect('TO_CHAR(v.fecha AT TIME ZONE \'UTC\', \'YYYY-MM-DD"T"HH24:MI:SS"Z"\')', 'ventaFecha');
 
       if (fechaInicio) {
         query = query.andWhere(`DATE(v.fecha) >= :fechaInicio`, { fechaInicio });
@@ -189,6 +190,7 @@ export class VentaService {
           cantidad,
           precioUnitario: parseFloat(row.precioUnitario) || 0,
           subtotal,
+          hora: row.ventaFecha ?? null,
         });
 
         byFecha[fecha].totalDia += subtotal;
