@@ -126,55 +126,33 @@ export class VentaService {
 
   async getCierreCaja(fechaInicio?: string, fechaFin?: string) {
     try {
-      console.log('🔍 getCierreCaja - Parámetros:', { fechaInicio, fechaFin });
-
-      // Primero: obtener todos los venta items con sus relaciones
-      const allItems = await this.ventaItemRepository.find({
-        relations: ['venta', 'inversionista'],
-        order: { venta: { fecha: 'DESC' } }
-      });
-
-      console.log(`📊 Total de items encontrados en BD: ${allItems.length}`);
-      if (allItems.length > 0) {
-        console.log(`📅 Primera venta: ${allItems[0].venta?.fecha}`);
-      }
-
-      // Construct query to get venta items grouped by date and investor
+      // Group by the shoe's investor (whose shoe was sold), not the sale's investor
       let query = this.ventaItemRepository
         .createQueryBuilder('vi')
         .innerJoin('vi.venta', 'v')
-        .leftJoin('v.inversionista', 'i')
+        .leftJoin('vi.zapato', 'z')
+        .leftJoin('z.inversionista', 'i')
         .select('TO_CHAR(v.fecha, \'YYYY-MM-DD\')', 'fecha')
-        .addSelect('COALESCE(i.id, v.inversionistaId)', 'inversionistaId')
+        .addSelect('COALESCE(i.id, z."inversionistaId")', 'inversionistaId')
         .addSelect('COALESCE(i.nombre, \'Sin Inversionista\')', 'inversionistaNombre')
         .addSelect('COUNT(vi.id)', 'totalItems')
         .addSelect('SUM(vi.subtotal)', 'totalVendido');
 
       if (fechaInicio) {
-        console.log(`📅 Filtrando desde: ${fechaInicio}`);
-        query = query.andWhere(
-          `DATE(v.fecha) >= :fechaInicio`,
-          { fechaInicio }
-        );
+        query = query.andWhere(`DATE(v.fecha) >= :fechaInicio`, { fechaInicio });
       }
 
       if (fechaFin) {
-        console.log(`📅 Filtrando hasta: ${fechaFin}`);
-        query = query.andWhere(
-          `DATE(v.fecha) <= :fechaFin`,
-          { fechaFin }
-        );
+        query = query.andWhere(`DATE(v.fecha) <= :fechaFin`, { fechaFin });
       }
 
       const resultados = await query
         .groupBy('TO_CHAR(v.fecha, \'YYYY-MM-DD\')')
-        .addGroupBy('COALESCE(i.id, v.inversionistaId)')
+        .addGroupBy('COALESCE(i.id, z."inversionistaId")')
         .addGroupBy('COALESCE(i.nombre, \'Sin Inversionista\')')
         .orderBy('TO_CHAR(v.fecha, \'YYYY-MM-DD\')', 'DESC')
         .addOrderBy('COALESCE(i.nombre, \'Sin Inversionista\')', 'ASC')
         .getRawMany();
-
-      console.log(`✅ Resultados de groupBy: ${resultados.length}`, resultados);
 
       // Agrupar por fecha
       const reportePorFecha = resultados.reduce((acc, item) => {
@@ -201,9 +179,7 @@ export class VentaService {
         return acc;
       }, {});
 
-      const resultado = Object.values(reportePorFecha);
-      console.log(`📊 Resultado final con ${resultado.length} días:`, resultado);
-      return resultado;
+      return Object.values(reportePorFecha);
     } catch (error) {
       console.error('❌ Error in getCierreCaja:', error);
       // Return empty array on error to prevent crashes
