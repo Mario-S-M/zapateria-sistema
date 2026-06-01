@@ -367,13 +367,13 @@ class VentaModel {
 }
 
 class CierreCajaInversionista {
-  final String inversionistaId;
+  final String? inversionistaId;
   final String nombre;
   final int totalItems;
   final double total;
 
   CierreCajaInversionista({
-    required this.inversionistaId,
+    this.inversionistaId,
     required this.nombre,
     required this.totalItems,
     required this.total,
@@ -381,9 +381,9 @@ class CierreCajaInversionista {
 
   factory CierreCajaInversionista.fromJson(Map<String, dynamic> json) {
     return CierreCajaInversionista(
-      inversionistaId: json['inversionistaId'] as String,
-      nombre: json['nombre'] as String,
-      totalItems: json['totalItems'] as int,
+      inversionistaId: json['inversionistaId'] as String?,
+      nombre: json['nombre'] as String? ?? 'Sin Inversionista',
+      totalItems: (json['totalItems'] as num).toInt(),
       total: double.parse(json['total'].toString()),
     );
   }
