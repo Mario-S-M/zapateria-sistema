@@ -533,3 +533,34 @@ class CierreCajaDia {
     );
   }
 }
+
+class InventarioItemModel {
+  final String id;
+  final String zapatoId;
+  final String? colorId;
+  final ColorModel? color;
+  final int talla;
+  final int cantidad;
+
+  InventarioItemModel({
+    required this.id,
+    required this.zapatoId,
+    this.colorId,
+    this.color,
+    required this.talla,
+    required this.cantidad,
+  });
+
+  factory InventarioItemModel.fromJson(Map<String, dynamic> json) {
+    return InventarioItemModel(
+      id: json['id'] as String,
+      zapatoId: json['zapatoId'] as String,
+      colorId: json['colorId'] as String?,
+      color: json['color'] != null
+          ? ColorModel.fromJson(json['color'] as Map<String, dynamic>)
+          : null,
+      talla: (json['talla'] as num).toInt(),
+      cantidad: (json['cantidad'] as num).toInt(),
+    );
+  }
+}

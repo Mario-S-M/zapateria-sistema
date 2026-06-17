@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:dio/dio.dart';
 
-const String baseUrl = kIsWeb ? '/api' : 'http://192.168.0.102:3000';
+const String baseUrl = String.fromEnvironment(
+  'API_URL',
+  defaultValue: kIsWeb ? '/api' : 'http://192.168.0.102:3000',
+);
 
 class ApiClient {
   late final Dio _dio;

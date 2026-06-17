@@ -3,11 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Venta } from '../entities/venta.entity';
 import { VentaItem } from '../entities/venta-item.entity';
 import { Inversionista } from '../entities/inversionista.entity';
+import { Inventario } from '../entities/inventario.entity';
 import { VentaController } from './venta.controller';
 import { VentaService } from './venta.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Venta, VentaItem, Inversionista])],
+  imports: [TypeOrmModule.forFeature([Venta, VentaItem, Inversionista, Inventario])],
   controllers: [VentaController],
   providers: [VentaService],
   exports: [VentaService],

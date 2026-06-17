@@ -7,6 +7,8 @@ import 'package:zapateria_flutter/services/zapato_service.dart';
 import 'package:zapateria_flutter/services/api_client.dart';
 import 'package:zapateria_flutter/utils/price_utils.dart';
 import 'package:zapateria_flutter/screens/zapato_form_screen.dart';
+import 'package:zapateria_flutter/screens/inventario_screen.dart';
+import 'package:zapateria_flutter/services/inventario_service.dart';
 import 'package:zapateria_flutter/components/zapato_image.dart';
 import 'package:zapateria_flutter/components/color_circle.dart';
 
@@ -95,9 +97,32 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
   }
 
   void _addToCart(ZapatoModel zapato, CartProvider cartProvider) {
-    cartProvider.addItem(zapato, 1, _getPrecio(zapato, cartProvider.tipoPrecio));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${zapato.nombre} agregado al carrito')),
+    showDialog(
+      context: context,
+      builder: (_) => _AddToCartDialog(
+        zapato: zapato,
+        precio: _getPrecio(zapato, cartProvider.tipoPrecio),
+        onAdd: ({required String? colorId, required String? colorNombre, required int? talla}) {
+          cartProvider.addItem(
+            zapato,
+            1,
+            _getPrecio(zapato, cartProvider.tipoPrecio),
+            colorId: colorId,
+            colorNombre: colorNombre,
+            talla: talla,
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${zapato.nombre} agregado al carrito')),
+          );
+        },
+      ),
+    );
+  }
+
+  void _goToInventario(ZapatoModel zapato) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => InventarioScreen(zapato: zapato)),
     );
   }
 
@@ -317,6 +342,7 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
             onEdit: () => _showForm(context, zapato),
             onAddToCart: () => _addToCart(zapato, cartProvider),
             onDelete: () => _deleteZapato(zapato),
+            onInventario: () => _goToInventario(zapato),
           );
         },
       ),
@@ -346,6 +372,7 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
               onEdit: () => _showForm(context, zapato),
               onAddToCart: () => _addToCart(zapato, cartProvider),
               onDelete: () => _deleteZapato(zapato),
+              onInventario: () => _goToInventario(zapato),
             );
           },
         );
@@ -409,6 +436,7 @@ class _ZapatoCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onAddToCart;
   final VoidCallback onDelete;
+  final VoidCallback onInventario;
 
   const _ZapatoCard({
     required this.zapato,
@@ -416,6 +444,7 @@ class _ZapatoCard extends StatelessWidget {
     required this.onEdit,
     required this.onAddToCart,
     required this.onDelete,
+    required this.onInventario,
   });
 
   @override
@@ -472,6 +501,11 @@ class _ZapatoCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 IconButton(
+                  icon: const Icon(Icons.inventory_2_outlined),
+                  tooltip: 'Inventario',
+                  onPressed: onInventario,
+                ),
+                IconButton(
                   icon: const Icon(Icons.delete_outline, color: Colors.red),
                   onPressed: onDelete,
                 ),
@@ -503,6 +537,7 @@ class _ZapatoGridCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onAddToCart;
   final VoidCallback onDelete;
+  final VoidCallback onInventario;
 
   const _ZapatoGridCard({
     required this.zapato,
@@ -510,6 +545,7 @@ class _ZapatoGridCard extends StatelessWidget {
     required this.onEdit,
     required this.onAddToCart,
     required this.onDelete,
+    required this.onInventario,
   });
 
   String _resolveUrl(String? url) {
@@ -632,6 +668,17 @@ class _ZapatoGridCard extends StatelessWidget {
                         height: 30,
                         child: IconButton(
                           padding: EdgeInsets.zero,
+                          icon: const Icon(Icons.inventory_2_outlined, size: 18),
+                          tooltip: 'Inventario',
+                          onPressed: onInventario,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      SizedBox(
+                        width: 30,
+                        height: 30,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
                           icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
                           onPressed: onDelete,
                         ),
@@ -644,6 +691,241 @@ class _ZapatoGridCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Add-to-cart dialog with color + talla selection ───────────────────────────
+
+class _AddToCartDialog extends StatefulWidget {
+  final ZapatoModel zapato;
+  final double precio;
+  final void Function({
+    required String? colorId,
+    required String? colorNombre,
+    required int? talla,
+  }) onAdd;
+
+  const _AddToCartDialog({
+    required this.zapato,
+    required this.precio,
+    required this.onAdd,
+  });
+
+  @override
+  State<_AddToCartDialog> createState() => _AddToCartDialogState();
+}
+
+class _AddToCartDialogState extends State<_AddToCartDialog> {
+  String? _selectedColorId;
+  int? _selectedTalla;
+  List<InventarioItemModel> _inventario = [];
+  bool _loadingInv = true;
+
+  List<int> get _tallas {
+    final s = widget.zapato.medidaInicio;
+    final e = widget.zapato.medidaFin;
+    if (e < s) return [];
+    return List.generate(e - s + 1, (i) => s + i);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.zapato.colores.isNotEmpty) {
+      _selectedColorId = widget.zapato.colores.first.colorId;
+    }
+    if (_tallas.isNotEmpty) _selectedTalla = _tallas.first;
+    _loadInventario();
+  }
+
+  Future<void> _loadInventario() async {
+    try {
+      final items = await inventarioService.getByZapato(widget.zapato.id);
+      if (mounted) setState(() { _inventario = items; _loadingInv = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loadingInv = false);
+    }
+  }
+
+  int _stock(String? colorId, int? talla) {
+    if (colorId == null || talla == null) return 0;
+    try {
+      return _inventario
+          .firstWhere((i) => i.colorId == colorId && i.talla == talla)
+          .cantidad;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colores = widget.zapato.colores;
+    final tallas = _tallas;
+    final stockActual = _stock(_selectedColorId, _selectedTalla);
+    final colorNombre = colores.isEmpty
+        ? null
+        : colores.firstWhere((c) => c.colorId == _selectedColorId,
+              orElse: () => colores.first)
+            .color
+            .nombre;
+
+    return AlertDialog(
+      title: Text(widget.zapato.nombre, style: theme.textTheme.titleMedium),
+      content: SizedBox(
+        width: 320,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Color selection
+            if (colores.isNotEmpty) ...[
+              Text('Color', style: theme.textTheme.labelLarge),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: colores.map((zc) {
+                  final selected = _selectedColorId == zc.colorId;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedColorId = zc.colorId),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: selected ? theme.colorScheme.primary : theme.dividerColor,
+                          width: selected ? 2 : 1,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        color: selected ? theme.colorScheme.primaryContainer : null,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ColorCircle(color: zc.color, size: 16),
+                          const SizedBox(width: 6),
+                          Text(zc.color.nombre, style: theme.textTheme.bodySmall),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+            ],
+            // Talla selection
+            if (tallas.isNotEmpty) ...[
+              Text('Talla', style: theme.textTheme.labelLarge),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: tallas.map((t) {
+                  final selected = _selectedTalla == t;
+                  final stock = _loadingInv ? -1 : _stock(_selectedColorId, t);
+                  final sinStock = !_loadingInv && stock == 0;
+                  return GestureDetector(
+                    onTap: sinStock ? null : () => setState(() => _selectedTalla = t),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 52,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: selected
+                              ? theme.colorScheme.primary
+                              : sinStock
+                                  ? theme.disabledColor.withOpacity(0.3)
+                                  : theme.dividerColor,
+                          width: selected ? 2 : 1,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                        color: selected
+                            ? theme.colorScheme.primaryContainer
+                            : sinStock
+                                ? theme.disabledColor.withOpacity(0.05)
+                                : null,
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            '$t',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: sinStock ? theme.disabledColor : null,
+                            ),
+                          ),
+                          if (!_loadingInv)
+                            Text(
+                              stock > 0 ? '$stock' : '–',
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: stock > 0
+                                    ? Colors.green.shade700
+                                    : theme.disabledColor,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 12),
+            ],
+            // Stock info
+            if (!_loadingInv && _selectedColorId != null && _selectedTalla != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: stockActual > 0
+                      ? Colors.green.shade50
+                      : Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      stockActual > 0 ? Icons.check_circle_outline : Icons.warning_amber_outlined,
+                      size: 16,
+                      color: stockActual > 0 ? Colors.green.shade700 : Colors.orange.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      stockActual > 0
+                          ? 'Stock disponible: $stockActual pares'
+                          : 'Sin stock registrado',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: stockActual > 0 ? Colors.green.shade800 : Colors.orange.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () {
+            Navigator.pop(context);
+            widget.onAdd(
+              colorId: _selectedColorId,
+              colorNombre: colorNombre,
+              talla: _selectedTalla,
+            );
+          },
+          child: const Text('Agregar'),
+        ),
+      ],
     );
   }
 }

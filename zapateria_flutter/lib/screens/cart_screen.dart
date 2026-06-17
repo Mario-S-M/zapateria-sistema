@@ -87,6 +87,8 @@ class _CartScreenState extends State<CartScreen> {
           zapatoId: i.zapato.id,
           cantidad: i.cantidad,
           precioUnitario: i.precioUnitario,
+          colorId: i.colorId,
+          talla: i.talla,
         )).toList(),
         metodoPago: cart.metodoPago,
         montoTarjeta: montoTarjeta,
@@ -254,6 +256,17 @@ class _CartScreenState extends State<CartScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(item.zapato.modelo, style: theme.textTheme.bodySmall),
+                      if (item.colorNombre != null || item.talla != null)
+                        Text(
+                          [
+                            if (item.colorNombre != null) item.colorNombre!,
+                            if (item.talla != null) 'T${item.talla}',
+                          ].join(' · '),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       Text('\$${formatPrice(item.precioUnitario)}',
                           style: theme.textTheme.bodyMedium?.copyWith(color: Colors.blue.shade700)),
                     ],
@@ -263,14 +276,14 @@ class _CartScreenState extends State<CartScreen> {
                     children: [
                       IconButton(
                           icon: const Icon(Icons.remove_circle_outline),
-                          onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad - 1)),
+                          onPressed: () => cart.updateQuantity(item.key, item.cantidad - 1)),
                       Text('${item.cantidad}', style: theme.textTheme.titleMedium),
                       IconButton(
                           icon: const Icon(Icons.add_circle_outline),
-                          onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad + 1)),
+                          onPressed: () => cart.updateQuantity(item.key, item.cantidad + 1)),
                       IconButton(
                           icon: const Icon(Icons.delete_outline, color: Colors.red),
-                          onPressed: () => cart.removeItem(item.zapato.id)),
+                          onPressed: () => cart.removeItem(item.key)),
                     ],
                   ),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -500,6 +513,17 @@ class _WebCartItem extends StatelessWidget {
                 Text(item.zapato.nombre, style: theme.textTheme.titleSmall),
                 Text(item.zapato.modelo,
                     style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
+                if (item.colorNombre != null || item.talla != null)
+                  Text(
+                    [
+                      if (item.colorNombre != null) item.colorNombre!,
+                      if (item.talla != null) 'T${item.talla}',
+                    ].join(' · '),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -510,14 +534,14 @@ class _WebCartItem extends StatelessWidget {
             children: [
               IconButton(
                   icon: const Icon(Icons.remove_circle_outline, size: 20),
-                  onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad - 1)),
+                  onPressed: () => cart.updateQuantity(item.key, item.cantidad - 1)),
               SizedBox(
                   width: 32,
                   child: Text('${item.cantidad}',
                       textAlign: TextAlign.center, style: theme.textTheme.titleSmall)),
               IconButton(
                   icon: const Icon(Icons.add_circle_outline, size: 20),
-                  onPressed: () => cart.updateQuantity(item.zapato.id, item.cantidad + 1)),
+                  onPressed: () => cart.updateQuantity(item.key, item.cantidad + 1)),
             ],
           ),
           Text('\$${formatPrice(item.precioUnitario * item.cantidad)}',
@@ -526,7 +550,7 @@ class _WebCartItem extends StatelessWidget {
           const SizedBox(width: 8),
           IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
-              onPressed: () => cart.removeItem(item.zapato.id)),
+              onPressed: () => cart.removeItem(item.key)),
         ],
       ),
     );

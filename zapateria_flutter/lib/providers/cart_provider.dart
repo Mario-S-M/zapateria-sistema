@@ -5,12 +5,21 @@ class CartItem {
   final ZapatoModel zapato;
   final int cantidad;
   final double precioUnitario;
+  final String? colorId;
+  final String? colorNombre;
+  final int? talla;
 
   CartItem({
     required this.zapato,
     required this.cantidad,
     required this.precioUnitario,
+    this.colorId,
+    this.colorNombre,
+    this.talla,
   });
+
+  // Unique key so the same zapato with different color+talla is a separate item
+  String get key => '${zapato.id}-${colorId ?? ''}-${talla ?? ''}';
 
   double get subtotal => precioUnitario * cantidad;
 }
@@ -30,40 +39,58 @@ class CartProvider with ChangeNotifier {
   double get total => _items.fold(0, (sum, item) => sum + item.subtotal);
   int get itemCount => _items.fold(0, (sum, item) => sum + item.cantidad);
 
-  void addItem(ZapatoModel zapato, int cantidad, double precioUnitario) {
-    final index = _items.indexWhere((i) => i.zapato.id == zapato.id);
+  void addItem(
+    ZapatoModel zapato,
+    int cantidad,
+    double precioUnitario, {
+    String? colorId,
+    String? colorNombre,
+    int? talla,
+  }) {
+    final newItem = CartItem(
+      zapato: zapato,
+      cantidad: cantidad,
+      precioUnitario: precioUnitario,
+      colorId: colorId,
+      colorNombre: colorNombre,
+      talla: talla,
+    );
+    final index = _items.indexWhere((i) => i.key == newItem.key);
     if (index >= 0) {
       _items[index] = CartItem(
         zapato: zapato,
         cantidad: _items[index].cantidad + cantidad,
         precioUnitario: precioUnitario,
+        colorId: colorId,
+        colorNombre: colorNombre,
+        talla: talla,
       );
     } else {
-      _items.add(CartItem(
-        zapato: zapato,
-        cantidad: cantidad,
-        precioUnitario: precioUnitario,
-      ));
+      _items.add(newItem);
     }
     notifyListeners();
   }
 
-  void removeItem(String zapatoId) {
-    _items.removeWhere((i) => i.zapato.id == zapatoId);
+  void removeItem(String key) {
+    _items.removeWhere((i) => i.key == key);
     notifyListeners();
   }
 
-  void updateQuantity(String zapatoId, int cantidad) {
+  void updateQuantity(String key, int cantidad) {
     if (cantidad <= 0) {
-      removeItem(zapatoId);
+      removeItem(key);
       return;
     }
-    final index = _items.indexWhere((i) => i.zapato.id == zapatoId);
+    final index = _items.indexWhere((i) => i.key == key);
     if (index >= 0) {
+      final existing = _items[index];
       _items[index] = CartItem(
-        zapato: _items[index].zapato,
+        zapato: existing.zapato,
         cantidad: cantidad,
-        precioUnitario: _items[index].precioUnitario,
+        precioUnitario: existing.precioUnitario,
+        colorId: existing.colorId,
+        colorNombre: existing.colorNombre,
+        talla: existing.talla,
       );
       notifyListeners();
     }

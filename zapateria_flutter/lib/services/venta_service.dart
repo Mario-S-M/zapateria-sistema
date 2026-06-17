@@ -83,11 +83,15 @@ class VentaItemDto {
   final String zapatoId;
   final int cantidad;
   final double precioUnitario;
+  final String? colorId;
+  final int? talla;
 
   VentaItemDto({
     required this.zapatoId,
     required this.cantidad,
     required this.precioUnitario,
+    this.colorId,
+    this.talla,
   });
 
   Map<String, dynamic> toJson() {
@@ -95,6 +99,8 @@ class VentaItemDto {
       'zapatoId': zapatoId,
       'cantidad': cantidad,
       'precioUnitario': precioUnitario,
+      if (colorId != null) 'colorId': colorId,
+      if (talla != null) 'talla': talla,
     };
   }
 }

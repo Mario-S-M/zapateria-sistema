@@ -34,6 +34,12 @@ export class VentaItem {
   @Column({ nullable: true })
   inversionistaId: string;
 
+  @Column({ nullable: true })
+  colorId: string;
+
+  @Column({ nullable: true })
+  talla: number;
+
   @ManyToOne(() => Venta, (venta) => venta.items, {
     onDelete: 'CASCADE',
   })

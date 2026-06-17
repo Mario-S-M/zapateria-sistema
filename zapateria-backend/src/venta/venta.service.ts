@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Venta } from '../entities/venta.entity';
 import { VentaItem } from '../entities/venta-item.entity';
 import { Inversionista } from '../entities/inversionista.entity';
+import { Inventario } from '../entities/inventario.entity';
 import { CreateVentaDto, UpdateVentaDto } from '../dto/venta.dto';
 
 @Injectable()
@@ -15,6 +16,8 @@ export class VentaService {
     private ventaItemRepository: Repository<VentaItem>,
     @InjectRepository(Inversionista)
     private inversionistaRepository: Repository<Inversionista>,
+    @InjectRepository(Inventario)
+    private inventarioRepository: Repository<Inventario>,
   ) {}
 
   async findAll(): Promise<Venta[]> {
@@ -68,10 +71,25 @@ export class VentaService {
         precioUnitario: item.precioUnitario,
         subtotal: item.precioUnitario * item.cantidad,
         inversionistaId: item.inversionistaId,
+        colorId: item.colorId ?? undefined,
+        talla: item.talla ?? undefined,
       }),
     );
 
     await this.ventaItemRepository.save(ventaItems);
+
+    // Decrement inventory for items that have color + talla
+    for (const item of createVentaDto.items) {
+      if (item.zapatoId && item.colorId && item.talla != null) {
+        const inv = await this.inventarioRepository.findOne({
+          where: { zapatoId: item.zapatoId, colorId: item.colorId, talla: item.talla },
+        });
+        if (inv) {
+          inv.cantidad = Math.max(0, inv.cantidad - item.cantidad);
+          await this.inventarioRepository.save(inv);
+        }
+      }
+    }
 
     return this.findOne(savedVenta.id);
   }

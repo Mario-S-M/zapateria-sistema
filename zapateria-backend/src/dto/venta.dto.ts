@@ -28,6 +28,15 @@ export class VentaItemDto {
   @IsOptional()
   @IsString()
   inversionistaId?: string;
+
+  @IsOptional()
+  @IsString()
+  colorId?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  talla?: number;
 }
 
 export class CreateVentaDto {
