@@ -82,6 +82,34 @@ class CategoriaModel {
   }
 }
 
+enum Horma { normal, reducido, amplio }
+
+extension HormaExt on Horma {
+  String get label {
+    switch (this) {
+      case Horma.normal: return 'Normal';
+      case Horma.reducido: return 'Reducido';
+      case Horma.amplio: return 'Amplio';
+    }
+  }
+
+  String get apiValue {
+    switch (this) {
+      case Horma.normal: return 'NORMAL';
+      case Horma.reducido: return 'REDUCIDO';
+      case Horma.amplio: return 'AMPLIO';
+    }
+  }
+
+  static Horma fromApi(String? value) {
+    switch (value) {
+      case 'REDUCIDO': return Horma.reducido;
+      case 'AMPLIO': return Horma.amplio;
+      default: return Horma.normal;
+    }
+  }
+}
+
 class ZapatoModel {
   final String id;
   final String codigoBarras;
@@ -92,6 +120,7 @@ class ZapatoModel {
   final double precioPublico;
   final int medidaInicio;
   final int medidaFin;
+  final Horma horma;
   final String? categoriaId;
   final CategoriaModel? categoria;
   final String? inversionistaId;
@@ -110,6 +139,7 @@ class ZapatoModel {
     required this.precioPublico,
     required this.medidaInicio,
     required this.medidaFin,
+    this.horma = Horma.normal,
     this.categoriaId,
     this.categoria,
     this.inversionistaId,
@@ -136,6 +166,7 @@ class ZapatoModel {
       precioPublico: double.parse(json['precioPublico'].toString()),
       medidaInicio: double.parse(json['medidaInicio'].toString()).toInt(),
       medidaFin: double.parse(json['medidaFin'].toString()).toInt(),
+      horma: HormaExt.fromApi(json['horma'] as String?),
       categoriaId: json['categoriaId'] as String?,
       categoria: json['categoria'] != null
           ? CategoriaModel.fromJson(json['categoria'] as Map<String, dynamic>)

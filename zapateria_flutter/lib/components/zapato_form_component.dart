@@ -7,6 +7,7 @@ import 'package:zapateria_flutter/services/color_service.dart';
 import 'package:zapateria_flutter/services/categoria_service.dart';
 import 'package:zapateria_flutter/services/inversionista_service.dart';
 import 'package:zapateria_flutter/utils/barcode_utils.dart';
+import 'package:zapateria_flutter/utils/talla_converter.dart';
 import 'package:zapateria_flutter/components/color_circle.dart';
 import 'package:zapateria_flutter/components/image_picker_component.dart';
 import 'package:zapateria_flutter/components/inversionista_form.dart';
@@ -50,6 +51,8 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
   String? _selectedInversionistaId;
   String? _fotoUrl;
   bool _loading = false;
+  Horma _horma = Horma.normal;
+  SistemaTalla _sistemaTalla = SistemaTalla.mx;
 
   @override
   void initState() {
@@ -67,6 +70,7 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
     _selectedCategoriaId = widget.zapato?.categoriaId;
     _selectedInversionistaId = widget.zapato?.inversionistaId;
     _fotoUrl = widget.zapato?.foto;
+    _horma = widget.zapato?.horma ?? Horma.normal;
     _loadData();
   }
 
@@ -125,8 +129,9 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
             foto: _fotoUrl,
             precioCompra: double.tryParse(_precioCompraController.text.trim()),
             precioPublico: double.tryParse(_precioPublicoController.text.trim()),
-            medidaInicio: int.tryParse(_medidaInicioController.text.trim()),
-            medidaFin: int.tryParse(_medidaFinController.text.trim()),
+            medidaInicio: _mxInicio,
+            medidaFin: _mxFin,
+            horma: _horma,
             colorIds: _selectedColorIds,
             categoriaId: _selectedCategoriaId,
             inversionistaId: _selectedInversionistaId,
@@ -140,8 +145,9 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
           foto: _fotoUrl ?? '',
           precioCompra: double.tryParse(_precioCompraController.text.trim()) ?? 0,
           precioPublico: double.tryParse(_precioPublicoController.text.trim()) ?? 0,
-          medidaInicio: int.tryParse(_medidaInicioController.text.trim()) ?? 0,
-          medidaFin: int.tryParse(_medidaFinController.text.trim()) ?? 0,
+          medidaInicio: _mxInicio,
+          medidaFin: _mxFin,
+          horma: _horma,
           colorIds: _selectedColorIds,
           categoriaId: _selectedCategoriaId,
           inversionistaId: _selectedInversionistaId,
@@ -157,6 +163,89 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  // Convert entered value to MX for storage
+  int get _mxInicio {
+    final raw = double.tryParse(_medidaInicioController.text.trim()) ?? 0;
+    return toMx(_sistemaTalla, raw).round();
+  }
+
+  int get _mxFin {
+    final raw = double.tryParse(_medidaFinController.text.trim()) ?? 0;
+    return toMx(_sistemaTalla, raw).round();
+  }
+
+  // Returns a widget showing the live conversion line below the medida fields
+  Widget _buildTallaConverter(BuildContext context) {
+    final theme = Theme.of(context);
+    final rawInicio = double.tryParse(_medidaInicioController.text.trim());
+    final rawFin = double.tryParse(_medidaFinController.text.trim());
+    if (rawInicio == null && rawFin == null) return const SizedBox.shrink();
+
+    String hint = '';
+    if (rawInicio != null && rawFin != null) {
+      final mxI = toMx(_sistemaTalla, rawInicio).round();
+      final mxF = toMx(_sistemaTalla, rawFin).round();
+      if (_sistemaTalla != SistemaTalla.mx) {
+        hint = 'MX $mxI – $mxF  ·  EU ${mxI + 14}–${mxF + 14}  ·  US ${mxI - 17}–${mxF - 17}  ·  CN ${mxI + 14}–${mxF + 14}';
+      } else {
+        hint = 'EU ${mxI + 14}–${mxF + 14}  ·  US ${mxI - 17}–${mxF - 17}  ·  CN ${mxI + 14}–${mxF + 14}';
+      }
+    } else if (rawInicio != null) {
+      final mx = toMx(_sistemaTalla, rawInicio).round();
+      hint = 'EU ${mx + 14}  ·  US ${mx - 17}  ·  CN ${mx + 14}';
+    }
+    if (hint.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(hint,
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary)),
+    );
+  }
+
+  Widget _buildHormaAndSistema(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        Text('Sistema de tallas', style: theme.textTheme.labelLarge),
+        const SizedBox(height: 6),
+        SegmentedButton<SistemaTalla>(
+          showSelectedIcon: false,
+          style: SegmentedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            visualDensity: VisualDensity.compact,
+          ),
+          segments: SistemaTalla.values
+              .map((s) => ButtonSegment(value: s, label: Text(s.label)))
+              .toList(),
+          selected: {_sistemaTalla},
+          onSelectionChanged: (s) => setState(() {
+            _sistemaTalla = s.first;
+            _medidaInicioController.clear();
+            _medidaFinController.clear();
+          }),
+        ),
+        const SizedBox(height: 12),
+        Text('Horma', style: theme.textTheme.labelLarge),
+        const SizedBox(height: 6),
+        SegmentedButton<Horma>(
+          showSelectedIcon: false,
+          style: SegmentedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            visualDensity: VisualDensity.compact,
+          ),
+          segments: Horma.values
+              .map((h) => ButtonSegment(value: h, label: Text(h.label)))
+              .toList(),
+          selected: {_horma},
+          onSelectionChanged: (s) => setState(() => _horma = s.first),
+        ),
+      ],
+    );
   }
 
   @override
@@ -282,20 +371,30 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
             Expanded(
               child: TextFormField(
                 controller: _medidaInicioController,
-                decoration: const InputDecoration(labelText: 'Talla inicio', border: OutlineInputBorder()),
-                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Talla inicio (${_sistemaTalla.label})',
+                  border: const OutlineInputBorder(),
+                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (_) => setState(() {}),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: TextFormField(
                 controller: _medidaFinController,
-                decoration: const InputDecoration(labelText: 'Talla fin', border: OutlineInputBorder()),
-                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Talla fin (${_sistemaTalla.label})',
+                  border: const OutlineInputBorder(),
+                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (_) => setState(() {}),
               ),
             ),
           ],
         ),
+        _buildTallaConverter(context),
+        _buildHormaAndSistema(context),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           value: _selectedCategoriaId,
@@ -392,11 +491,23 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: TextFormField(controller: _medidaInicioController, decoration: const InputDecoration(labelText: 'Medida inicio'), keyboardType: TextInputType.number)),
+              Expanded(child: TextFormField(
+                controller: _medidaInicioController,
+                decoration: InputDecoration(labelText: 'Talla inicio (${_sistemaTalla.label})'),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (_) => setState(() {}),
+              )),
               const SizedBox(width: 12),
-              Expanded(child: TextFormField(controller: _medidaFinController, decoration: const InputDecoration(labelText: 'Medida fin'), keyboardType: TextInputType.number)),
+              Expanded(child: TextFormField(
+                controller: _medidaFinController,
+                decoration: InputDecoration(labelText: 'Talla fin (${_sistemaTalla.label})'),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (_) => setState(() {}),
+              )),
             ],
           ),
+          _buildTallaConverter(context),
+          _buildHormaAndSistema(context),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             value: _selectedCategoriaId,

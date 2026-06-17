@@ -9,6 +9,7 @@ import 'package:zapateria_flutter/utils/price_utils.dart';
 import 'package:zapateria_flutter/screens/zapato_form_screen.dart';
 import 'package:zapateria_flutter/screens/inventario_screen.dart';
 import 'package:zapateria_flutter/services/inventario_service.dart';
+import 'package:zapateria_flutter/utils/talla_converter.dart';
 import 'package:zapateria_flutter/components/zapato_image.dart';
 import 'package:zapateria_flutter/components/color_circle.dart';
 
@@ -519,10 +520,18 @@ class _ZapatoCard extends StatelessWidget {
                 children: zapato.colores.map((zc) => ColorCircle(color: zc.color, size: 24)).toList(),
               ),
             ],
-            if (zapato.categoria != null)
+            if (zapato.horma != Horma.normal || zapato.categoria != null)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text('Categoría: ${zapato.categoria!.nombre}', style: theme.textTheme.bodySmall),
+                child: Wrap(
+                  spacing: 6,
+                  children: [
+                    if (zapato.horma != Horma.normal)
+                      _HormaBadge(horma: zapato.horma),
+                    if (zapato.categoria != null)
+                      Text('Categoría: ${zapato.categoria!.nombre}', style: theme.textTheme.bodySmall),
+                  ],
+                ),
               ),
           ],
         ),
@@ -698,6 +707,30 @@ class _ZapatoGridCard extends StatelessWidget {
 String _tallaDialogLabel(double t) =>
     t % 1 == 0 ? t.toInt().toString() : t.toString();
 
+class _HormaBadge extends StatelessWidget {
+  final Horma horma;
+  const _HormaBadge({required this.horma});
+
+  @override
+  Widget build(BuildContext context) {
+    final isAmplio = horma == Horma.amplio;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: isAmplio ? Colors.blue.shade100 : Colors.orange.shade100,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        horma.label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: isAmplio ? Colors.blue.shade800 : Colors.orange.shade800,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
 // ── Add-to-cart dialog with color + talla selection ───────────────────────────
 
 class _AddToCartDialog extends StatefulWidget {
@@ -779,9 +812,33 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
               orElse: () => colores.first)
             .color
             .nombre;
+    final horma = widget.zapato.horma;
 
     return AlertDialog(
-      title: Text(widget.zapato.nombre, style: theme.textTheme.titleMedium),
+      title: Row(
+        children: [
+          Expanded(child: Text(widget.zapato.nombre, style: theme.textTheme.titleMedium)),
+          if (horma != Horma.normal)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: horma == Horma.amplio
+                    ? Colors.blue.shade100
+                    : Colors.orange.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                horma.label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: horma == Horma.amplio
+                      ? Colors.blue.shade800
+                      : Colors.orange.shade800,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+        ],
+      ),
       content: SizedBox(
         width: 320,
         child: Column(
@@ -839,8 +896,8 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
                     onTap: sinStock ? null : () => setState(() => _selectedTalla = t),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
-                      width: 52,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      width: 58,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                       decoration: BoxDecoration(
                         border: Border.all(
                           color: selected
@@ -860,21 +917,46 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
                       child: Column(
                         children: [
                           Text(
-                            _tallaDialogLabel(t),
+                            'MX ${_tallaDialogLabel(t)}',
                             textAlign: TextAlign.center,
-                            style: theme.textTheme.bodyMedium?.copyWith(
+                            style: theme.textTheme.labelMedium?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: sinStock ? theme.disabledColor : null,
+                              color: sinStock ? theme.disabledColor : theme.colorScheme.primary,
+                            ),
+                          ),
+                          Text(
+                            'EU ${_tallaDialogLabel(mxToEu(t))}',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: sinStock ? theme.disabledColor : theme.hintColor,
+                            ),
+                          ),
+                          Text(
+                            'US ${_tallaDialogLabel(mxToUs(t))}',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: sinStock ? theme.disabledColor : theme.hintColor,
                             ),
                           ),
                           if (!_loadingInv)
-                            Text(
-                              stock > 0 ? '$stock' : '–',
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.labelSmall?.copyWith(
+                            Container(
+                              margin: const EdgeInsets.only(top: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(
                                 color: stock > 0
-                                    ? Colors.green.shade700
-                                    : theme.disabledColor,
+                                    ? Colors.green.shade100
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                stock > 0 ? '$stock' : '–',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: stock > 0
+                                      ? Colors.green.shade800
+                                      : theme.disabledColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                         ],

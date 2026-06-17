@@ -3,10 +3,12 @@ import {
   IsNumber,
   IsArray,
   IsOptional,
+  IsEnum,
   MinLength,
   Min,
   ValidateNested,
 } from 'class-validator';
+import { Horma } from '../entities/zapato.entity';
 import { Type } from 'class-transformer';
 
 export class CreateZapatoDto {
@@ -46,6 +48,10 @@ export class CreateZapatoDto {
   @IsString({ each: true })
   @MinLength(1, { each: true })
   colorIds: string[];
+
+  @IsOptional()
+  @IsEnum(Horma)
+  horma?: Horma;
 
   @IsOptional()
   @IsString()
@@ -101,6 +107,10 @@ export class UpdateZapatoDto {
   @IsString({ each: true })
   @MinLength(1, { each: true })
   colorIds?: string[];
+
+  @IsOptional()
+  @IsEnum(Horma)
+  horma?: Horma;
 
   @IsOptional()
   @IsString()

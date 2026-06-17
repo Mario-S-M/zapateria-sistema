@@ -13,6 +13,12 @@ import { VentaItem } from './venta-item.entity';
 import { Categoria } from './categoria.entity';
 import { Inversionista } from './inversionista.entity';
 
+export enum Horma {
+  NORMAL = 'NORMAL',
+  REDUCIDO = 'REDUCIDO',
+  AMPLIO = 'AMPLIO',
+}
+
 @Entity('zapatos')
 export class Zapato {
   @PrimaryGeneratedColumn('uuid')
@@ -41,6 +47,9 @@ export class Zapato {
 
   @Column('decimal', { precision: 4, scale: 1 })
   medidaFin: number;
+
+  @Column({ type: 'enum', enum: Horma, default: Horma.NORMAL })
+  horma: Horma;
 
   @Column({ nullable: true })
   categoriaId?: string;

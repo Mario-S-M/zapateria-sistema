@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/services/inventario_service.dart';
 import 'package:zapateria_flutter/components/color_circle.dart';
+import 'package:zapateria_flutter/utils/talla_converter.dart';
 
 class InventarioScreen extends StatefulWidget {
   final ZapatoModel zapato;
@@ -220,7 +221,7 @@ class _InventarioTable extends StatelessWidget {
 
   const _InventarioTable({required this.tallas, required this.rows});
 
-  static const double _colWidth = 72.0;
+  static const double _colWidth = 80.0;
   static const double _labelWidth = 120.0;
 
   @override
@@ -251,17 +252,33 @@ class _InventarioTable extends StatelessWidget {
                       child: Text('Color', style: theme.textTheme.labelLarge),
                     ),
                   ),
-                  ...tallas.map((t) => SizedBox(
-                    width: _colWidth,
-                    child: Center(
-                      child: Text(
-                        'T${_tallaLabel(t)}',
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: theme.colorScheme.primary,
+                  ...tallas.map((t) {
+                    final eq = equivalencias(t);
+                    return SizedBox(
+                      width: _colWidth,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'MX ${formatTalla(eq.mx)}',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text('EU ${formatTalla(eq.eu)}',
+                                style: theme.textTheme.labelSmall?.copyWith(color: theme.hintColor)),
+                            Text('US ${formatTalla(eq.us)}',
+                                style: theme.textTheme.labelSmall?.copyWith(color: theme.hintColor)),
+                            Text('CN ${formatTalla(eq.cn)}',
+                                style: theme.textTheme.labelSmall?.copyWith(color: theme.hintColor)),
+                          ],
                         ),
                       ),
-                    ),
-                  )),
+                    );
+                  }),
                   SizedBox(
                     width: _colWidth,
                     child: Center(

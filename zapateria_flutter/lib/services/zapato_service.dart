@@ -45,6 +45,7 @@ class ZapatoCreateDto {
   final double precioPublico;
   final int medidaInicio;
   final int medidaFin;
+  final Horma horma;
   final List<String> colorIds;
   final String? categoriaId;
   final String? inversionistaId;
@@ -58,6 +59,7 @@ class ZapatoCreateDto {
     required this.precioPublico,
     required this.medidaInicio,
     required this.medidaFin,
+    this.horma = Horma.normal,
     required this.colorIds,
     this.categoriaId,
     this.inversionistaId,
@@ -73,6 +75,7 @@ class ZapatoCreateDto {
       'precioPublico': precioPublico,
       'medidaInicio': medidaInicio,
       'medidaFin': medidaFin,
+      'horma': horma.apiValue,
       'colorIds': colorIds,
       if (categoriaId != null) 'categoriaId': categoriaId,
       if (inversionistaId != null) 'inversionistaId': inversionistaId,
@@ -89,6 +92,7 @@ class ZapatoUpdateDto {
   final double? precioPublico;
   final int? medidaInicio;
   final int? medidaFin;
+  final Horma? horma;
   final List<String>? colorIds;
   final String? categoriaId;
   final String? inversionistaId;
@@ -102,6 +106,7 @@ class ZapatoUpdateDto {
     this.precioPublico,
     this.medidaInicio,
     this.medidaFin,
+    this.horma,
     this.colorIds,
     this.categoriaId,
     this.inversionistaId,
@@ -117,6 +122,7 @@ class ZapatoUpdateDto {
       if (precioPublico != null) 'precioPublico': precioPublico,
       if (medidaInicio != null) 'medidaInicio': medidaInicio,
       if (medidaFin != null) 'medidaFin': medidaFin,
+      if (horma != null) 'horma': horma!.apiValue,
       if (colorIds != null) 'colorIds': colorIds,
       if (categoriaId != null) 'categoriaId': categoriaId,
       if (inversionistaId != null) 'inversionistaId': inversionistaId,
