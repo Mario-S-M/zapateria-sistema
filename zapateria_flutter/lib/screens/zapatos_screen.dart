@@ -102,7 +102,7 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
       builder: (_) => _AddToCartDialog(
         zapato: zapato,
         precio: _getPrecio(zapato, cartProvider.tipoPrecio),
-        onAdd: ({required String? colorId, required String? colorNombre, required int? talla}) {
+        onAdd: ({required String? colorId, required String? colorNombre, required double? talla}) {
           cartProvider.addItem(
             zapato,
             1,
@@ -695,6 +695,9 @@ class _ZapatoGridCard extends StatelessWidget {
   }
 }
 
+String _tallaDialogLabel(double t) =>
+    t % 1 == 0 ? t.toInt().toString() : t.toString();
+
 // ── Add-to-cart dialog with color + talla selection ───────────────────────────
 
 class _AddToCartDialog extends StatefulWidget {
@@ -703,7 +706,7 @@ class _AddToCartDialog extends StatefulWidget {
   final void Function({
     required String? colorId,
     required String? colorNombre,
-    required int? talla,
+    required double? talla,
   }) onAdd;
 
   const _AddToCartDialog({
@@ -718,15 +721,20 @@ class _AddToCartDialog extends StatefulWidget {
 
 class _AddToCartDialogState extends State<_AddToCartDialog> {
   String? _selectedColorId;
-  int? _selectedTalla;
+  double? _selectedTalla;
   List<InventarioItemModel> _inventario = [];
   bool _loadingInv = true;
 
-  List<int> get _tallas {
+  List<double> get _tallas {
     final s = widget.zapato.medidaInicio;
     final e = widget.zapato.medidaFin;
     if (e < s) return [];
-    return List.generate(e - s + 1, (i) => s + i);
+    final result = <double>[];
+    for (var t = s; t <= e; t++) {
+      result.add(t.toDouble());
+      if (t < e) result.add(t + 0.5);
+    }
+    return result;
   }
 
   @override
@@ -748,7 +756,7 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
     }
   }
 
-  int _stock(String? colorId, int? talla) {
+  int _stock(String? colorId, double? talla) {
     if (colorId == null || talla == null) return 0;
     try {
       return _inventario
@@ -852,7 +860,7 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
                       child: Column(
                         children: [
                           Text(
-                            '$t',
+                            _tallaDialogLabel(t),
                             textAlign: TextAlign.center,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.bold,

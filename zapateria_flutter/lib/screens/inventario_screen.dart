@@ -15,15 +15,22 @@ class InventarioScreen extends StatefulWidget {
 
 class _InventarioScreenState extends State<InventarioScreen> {
   // controllers[colorId][talla] = TextEditingController
-  final Map<String, Map<int, TextEditingController>> _controllers = {};
+  final Map<String, Map<double, TextEditingController>> _controllers = {};
   bool _loading = true;
   bool _saving = false;
 
   List<ZapatoColorModel> get _colores => widget.zapato.colores;
-  List<int> get _tallas {
+
+  // Generates full and half sizes: 23.0, 23.5, 24.0, 24.5, ...
+  List<double> get _tallas {
     final start = widget.zapato.medidaInicio;
     final end = widget.zapato.medidaFin;
-    return List.generate(end - start + 1, (i) => start + i);
+    final result = <double>[];
+    for (var t = start; t <= end; t++) {
+      result.add(t.toDouble());
+      if (t < end) result.add(t + 0.5);
+    }
+    return result;
   }
 
   @override
@@ -34,16 +41,16 @@ class _InventarioScreenState extends State<InventarioScreen> {
   }
 
   void _initControllers() {
+    final tallas = _tallas;
     for (final zc in _colores) {
       _controllers[zc.colorId] = {};
-      for (final t in _tallas) {
+      for (final t in tallas) {
         _controllers[zc.colorId]![t] = TextEditingController(text: '0');
       }
     }
-    // If no colors, use a special key
     if (_colores.isEmpty) {
       _controllers['__none__'] = {};
-      for (final t in _tallas) {
+      for (final t in tallas) {
         _controllers['__none__']![t] = TextEditingController(text: '0');
       }
     }
@@ -188,13 +195,16 @@ class _InventarioScreenState extends State<InventarioScreen> {
   }
 }
 
+String _tallaLabel(double t) =>
+    t == t.truncateToDouble() ? t.toInt().toString() : t.toString();
+
 // ── Table widget ──────────────────────────────────────────────────────────────
 
 class _InventarioRow {
   final String label;
   final Widget colorWidget;
-  final Map<int, TextEditingController> controllers;
-  final List<int> tallas;
+  final Map<double, TextEditingController> controllers;
+  final List<double> tallas;
 
   const _InventarioRow({
     required this.label,
@@ -205,7 +215,7 @@ class _InventarioRow {
 }
 
 class _InventarioTable extends StatelessWidget {
-  final List<int> tallas;
+  final List<double> tallas;
   final List<_InventarioRow> rows;
 
   const _InventarioTable({required this.tallas, required this.rows});
@@ -245,7 +255,7 @@ class _InventarioTable extends StatelessWidget {
                     width: _colWidth,
                     child: Center(
                       child: Text(
-                        'T$t',
+                        'T${_tallaLabel(t)}',
                         style: theme.textTheme.labelLarge?.copyWith(
                           color: theme.colorScheme.primary,
                         ),
@@ -284,7 +294,7 @@ class _InventarioTable extends StatelessWidget {
 
 class _DataRow extends StatefulWidget {
   final _InventarioRow row;
-  final List<int> tallas;
+  final List<double> tallas;
   final double colWidth;
   final double labelWidth;
   final Color? background;
@@ -396,7 +406,7 @@ class _StockCell extends StatelessWidget {
 
 class _TotalsRow extends StatefulWidget {
   final List<_InventarioRow> rows;
-  final List<int> tallas;
+  final List<double> tallas;
   final double colWidth;
   final double labelWidth;
 
@@ -422,7 +432,7 @@ class _TotalsRowState extends State<_TotalsRow> {
     }
   }
 
-  int _totalForTalla(int t) => widget.rows.fold(0, (sum, row) {
+  int _totalForTalla(double t) => widget.rows.fold(0, (sum, row) {
     return sum + (int.tryParse(row.controllers[t]?.text ?? '0') ?? 0);
   });
 

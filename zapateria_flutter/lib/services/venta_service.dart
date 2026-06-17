@@ -84,7 +84,7 @@ class VentaItemDto {
   final int cantidad;
   final double precioUnitario;
   final String? colorId;
-  final int? talla;
+  final double? talla;
 
   VentaItemDto({
     required this.zapatoId,

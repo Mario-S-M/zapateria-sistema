@@ -21,7 +21,7 @@ export class Inventario {
   @Column({ nullable: true })
   colorId: string | undefined;
 
-  @Column()
+  @Column({ type: 'decimal', precision: 5, scale: 1 })
   talla: number;
 
   @Column({ default: 0 })

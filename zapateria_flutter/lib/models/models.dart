@@ -539,7 +539,7 @@ class InventarioItemModel {
   final String zapatoId;
   final String? colorId;
   final ColorModel? color;
-  final int talla;
+  final double talla;
   final int cantidad;
 
   InventarioItemModel({
@@ -559,7 +559,7 @@ class InventarioItemModel {
       color: json['color'] != null
           ? ColorModel.fromJson(json['color'] as Map<String, dynamic>)
           : null,
-      talla: (json['talla'] as num).toInt(),
+      talla: (json['talla'] as num).toDouble(),
       cantidad: (json['cantidad'] as num).toInt(),
     );
   }

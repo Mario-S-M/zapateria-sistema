@@ -7,7 +7,7 @@ class CartItem {
   final double precioUnitario;
   final String? colorId;
   final String? colorNombre;
-  final int? talla;
+  final double? talla;
 
   CartItem({
     required this.zapato,
@@ -45,7 +45,7 @@ class CartProvider with ChangeNotifier {
     double precioUnitario, {
     String? colorId,
     String? colorNombre,
-    int? talla,
+    double? talla,
   }) {
     final newItem = CartItem(
       zapato: zapato,

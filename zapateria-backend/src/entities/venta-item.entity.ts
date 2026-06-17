@@ -37,7 +37,7 @@ export class VentaItem {
   @Column({ nullable: true })
   colorId: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'decimal', precision: 5, scale: 1, nullable: true })
   talla: number;
 
   @ManyToOne(() => Venta, (venta) => venta.items, {

@@ -260,7 +260,7 @@ class _CartScreenState extends State<CartScreen> {
                         Text(
                           [
                             if (item.colorNombre != null) item.colorNombre!,
-                            if (item.talla != null) 'T${item.talla}',
+                            if (item.talla != null) 'T${item.talla! % 1 == 0 ? item.talla!.toInt() : item.talla}',
                           ].join(' · '),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.primary,
@@ -517,7 +517,7 @@ class _WebCartItem extends StatelessWidget {
                   Text(
                     [
                       if (item.colorNombre != null) item.colorNombre!,
-                      if (item.talla != null) 'T${item.talla}',
+                      if (item.talla != null) 'T${item.talla! % 1 == 0 ? item.talla!.toInt() : item.talla}',
                     ].join(' · '),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.primary,
