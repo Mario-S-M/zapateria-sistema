@@ -66,7 +66,13 @@ class _InventarioScreenState extends State<InventarioScreen> {
           _controllers[key]![item.talla]!.text = '${item.cantidad}';
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar inventario: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
     if (mounted) setState(() => _loading = false);
   }
 

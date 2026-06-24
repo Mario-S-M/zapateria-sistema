@@ -21,7 +21,12 @@ export class Inventario {
   @Column({ nullable: true })
   colorId: string | undefined;
 
-  @Column({ type: 'decimal', precision: 5, scale: 1 })
+  @Column({
+    type: 'decimal',
+    precision: 5,
+    scale: 1,
+    transformer: { to: (v: number) => v, from: (v: string) => parseFloat(v) },
+  })
   talla: number;
 
   @Column({ default: 0 })

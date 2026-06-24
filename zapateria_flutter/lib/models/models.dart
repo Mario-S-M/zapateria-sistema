@@ -590,7 +590,7 @@ class InventarioItemModel {
       color: json['color'] != null
           ? ColorModel.fromJson(json['color'] as Map<String, dynamic>)
           : null,
-      talla: (json['talla'] as num).toDouble(),
+      talla: double.parse(json['talla'].toString()),
       cantidad: (json['cantidad'] as num).toInt(),
     );
   }
