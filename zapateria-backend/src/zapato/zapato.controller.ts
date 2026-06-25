@@ -41,6 +41,14 @@ export class ZapatoController {
     return this.zapatoService.update(id, updateZapatoDto);
   }
 
+  @Post(':id/merge/:duplicateId')
+  merge(
+    @Param('id') id: string,
+    @Param('duplicateId') duplicateId: string,
+  ) {
+    return this.zapatoService.merge(id, duplicateId);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string) {

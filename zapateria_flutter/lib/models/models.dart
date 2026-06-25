@@ -110,12 +110,49 @@ extension HormaExt on Horma {
   }
 }
 
+class PrecioRangoModel {
+  final String id;
+  final String zapatoId;
+  final double medidaInicio;
+  final double medidaFin;
+  final double precioCompra;
+  final double precioPublico;
+
+  PrecioRangoModel({
+    required this.id,
+    required this.zapatoId,
+    required this.medidaInicio,
+    required this.medidaFin,
+    required this.precioCompra,
+    required this.precioPublico,
+  });
+
+  factory PrecioRangoModel.fromJson(Map<String, dynamic> json) {
+    return PrecioRangoModel(
+      id: json['id'] as String,
+      zapatoId: json['zapatoId'] as String,
+      medidaInicio: double.parse(json['medidaInicio'].toString()),
+      medidaFin: double.parse(json['medidaFin'].toString()),
+      precioCompra: double.parse(json['precioCompra'].toString()),
+      precioPublico: double.parse(json['precioPublico'].toString()),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'medidaInicio': medidaInicio,
+    'medidaFin': medidaFin,
+    'precioCompra': precioCompra,
+    'precioPublico': precioPublico,
+  };
+}
+
 class ZapatoModel {
   final String id;
   final String codigoBarras;
   final String nombre;
   final String modelo;
   final String? foto;
+  final List<String> fotos;
   final double precioCompra;
   final double precioPublico;
   final int medidaInicio;
@@ -126,6 +163,7 @@ class ZapatoModel {
   final String? inversionistaId;
   final InversionistaModel? inversionista;
   final List<ZapatoColorModel> colores;
+  final List<PrecioRangoModel> precioRangos;
   final String createdAt;
   final String updatedAt;
 
@@ -135,6 +173,7 @@ class ZapatoModel {
     required this.nombre,
     required this.modelo,
     this.foto,
+    this.fotos = const [],
     required this.precioCompra,
     required this.precioPublico,
     required this.medidaInicio,
@@ -145,9 +184,24 @@ class ZapatoModel {
     this.inversionistaId,
     this.inversionista,
     required this.colores,
+    this.precioRangos = const [],
     required this.createdAt,
     required this.updatedAt,
   });
+
+  double getPrecioPublicoForTalla(double talla) {
+    for (final r in precioRangos) {
+      if (talla >= r.medidaInicio && talla <= r.medidaFin) return r.precioPublico;
+    }
+    return precioPublico;
+  }
+
+  double getPrecioCompraForTalla(double talla) {
+    for (final r in precioRangos) {
+      if (talla >= r.medidaInicio && talla <= r.medidaFin) return r.precioCompra;
+    }
+    return precioCompra;
+  }
 
   factory ZapatoModel.fromJson(Map<String, dynamic> json) {
     final coloresJson = json['colores'] as List? ?? [];
@@ -156,12 +210,24 @@ class ZapatoModel {
         .map((c) => ZapatoColorModel.fromJson(c))
         .toList();
 
+    final rangosJson = json['precioRangos'] as List? ?? [];
+    final precioRangos = rangosJson
+        .whereType<Map<String, dynamic>>()
+        .map((r) => PrecioRangoModel.fromJson(r))
+        .toList();
+
     return ZapatoModel(
       id: json['id'] as String,
       codigoBarras: json['codigoBarras'] as String,
       nombre: json['nombre'] as String,
       modelo: json['modelo'] as String,
       foto: json['foto'] as String?,
+      fotos: (() {
+        final raw = json['fotos'];
+        if (raw is List) return raw.map((e) => e as String).toList();
+        final f = json['foto'] as String?;
+        return (f != null && f.isNotEmpty) ? [f] : <String>[];
+      })(),
       precioCompra: double.parse(json['precioCompra'].toString()),
       precioPublico: double.parse(json['precioPublico'].toString()),
       medidaInicio: double.parse(json['medidaInicio'].toString()).toInt(),
@@ -176,6 +242,7 @@ class ZapatoModel {
           ? InversionistaModel.fromJson(json['inversionista'] as Map<String, dynamic>)
           : null,
       colores: colores,
+      precioRangos: precioRangos,
       createdAt: json['createdAt'] as String,
       updatedAt: json['updatedAt'] as String,
     );
@@ -188,6 +255,7 @@ class ZapatoModel {
       'nombre': nombre,
       'modelo': modelo,
       if (foto != null) 'foto': foto,
+      'fotos': fotos,
       'precioCompra': precioCompra,
       'precioPublico': precioPublico,
       'medidaInicio': medidaInicio,
@@ -195,6 +263,7 @@ class ZapatoModel {
       if (categoriaId != null) 'categoriaId': categoriaId,
       if (inversionistaId != null) 'inversionistaId': inversionistaId,
       'colores': colores.map((c) => c.colorId).toList(),
+      'precioRangos': precioRangos.map((r) => r.toJson()).toList(),
       'createdAt': createdAt,
       'updatedAt': updatedAt,
     };

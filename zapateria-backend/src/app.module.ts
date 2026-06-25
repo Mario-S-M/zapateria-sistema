@@ -18,6 +18,7 @@ import { Venta } from './entities/venta.entity';
 import { VentaItem } from './entities/venta-item.entity';
 import { Categoria } from './entities/categoria.entity';
 import { Inventario } from './entities/inventario.entity';
+import { PrecioRango } from './entities/precio-rango.entity';
 
 @Module({
   imports: [
@@ -31,7 +32,7 @@ import { Inventario } from './entities/inventario.entity';
       username: process.env.DB_USERNAME || 'postgres',
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_DATABASE || 'zapateria',
-      entities: [Color, Zapato, ZapatoColor, Inversionista, Venta, VentaItem, Categoria, Inventario],
+      entities: [Color, Zapato, ZapatoColor, Inversionista, Venta, VentaItem, Categoria, Inventario, PrecioRango],
       synchronize: true,
       retryAttempts: 3,
       retryDelay: 3000,

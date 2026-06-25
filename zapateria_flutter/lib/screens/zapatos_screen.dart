@@ -71,14 +71,6 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
   List<ZapatoModel> get _paginated => _filtered.skip(_page * _perPage).take(_perPage).toList();
   int get _totalPages => (_filtered.length / _perPage).ceil();
 
-  double _getPrecio(ZapatoModel zapato, TipoPrecio tipoPrecio) {
-    switch (tipoPrecio) {
-      case TipoPrecio.publico: return zapato.precioPublico;
-      case TipoPrecio.mayorista: return zapato.precioCompra * 1.3;
-      case TipoPrecio.inversionista: return zapato.precioCompra * 1.2;
-    }
-  }
-
   void _goToPage(int page) {
     setState(() => _page = page);
     _scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
@@ -97,17 +89,26 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
     if (mounted) setState(() {});
   }
 
+  double _getPrecioForTalla(ZapatoModel zapato, TipoPrecio tipoPrecio, double? talla) {
+    final t = talla ?? zapato.medidaInicio.toDouble();
+    switch (tipoPrecio) {
+      case TipoPrecio.publico: return zapato.getPrecioPublicoForTalla(t);
+      case TipoPrecio.mayorista: return zapato.getPrecioCompraForTalla(t) * 1.3;
+      case TipoPrecio.inversionista: return zapato.getPrecioCompraForTalla(t) * 1.2;
+    }
+  }
+
   void _addToCart(ZapatoModel zapato, CartProvider cartProvider) {
     showDialog(
       context: context,
       builder: (_) => _AddToCartDialog(
         zapato: zapato,
-        precio: _getPrecio(zapato, cartProvider.tipoPrecio),
+        tipoPrecio: cartProvider.tipoPrecio,
         onAdd: ({required String? colorId, required String? colorNombre, required double? talla}) {
           cartProvider.addItem(
             zapato,
             1,
-            _getPrecio(zapato, cartProvider.tipoPrecio),
+            _getPrecioForTalla(zapato, cartProvider.tipoPrecio, talla),
             colorId: colorId,
             colorNombre: colorNombre,
             talla: talla,
@@ -154,6 +155,75 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
       } catch (e) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
+    }
+  }
+
+  Future<void> _mergeZapato(ZapatoModel zapato) async {
+    final others = _zapatos.where((z) => z.id != zapato.id).toList();
+    if (others.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No hay otros zapatos para unir')));
+      return;
+    }
+
+    ZapatoModel? selected;
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => AlertDialog(
+          title: const Text('Unir zapato duplicado'),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Original: ${zapato.nombre} (${zapato.modelo})',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                const Text('Selecciona el duplicado a eliminar:',
+                    style: TextStyle(color: Colors.grey)),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 300),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: others.map((z) => RadioListTile<ZapatoModel>(
+                        value: z,
+                        groupValue: selected,
+                        title: Text(z.nombre),
+                        subtitle: Text('${z.modelo} · ${z.codigoBarras}'),
+                        onChanged: (v) => setModal(() => selected = v),
+                        dense: true,
+                      )).toList(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            ElevatedButton(
+              onPressed: selected == null ? null : () => Navigator.pop(ctx, true),
+              child: const Text('Unir'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (selected == null || !mounted) return;
+
+    try {
+      await zapatoService.merge(zapato.id, selected!.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('"${selected!.nombre}" unido a "${zapato.nombre}"')),
+        );
+        _loadZapatos();
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
@@ -344,6 +414,7 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
             onAddToCart: () => _addToCart(zapato, cartProvider),
             onDelete: () => _deleteZapato(zapato),
             onInventario: () => _goToInventario(zapato),
+            onMerge: () => _mergeZapato(zapato),
           );
         },
       ),
@@ -374,6 +445,7 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
               onAddToCart: () => _addToCart(zapato, cartProvider),
               onDelete: () => _deleteZapato(zapato),
               onInventario: () => _goToInventario(zapato),
+              onMerge: () => _mergeZapato(zapato),
             );
           },
         );
@@ -438,6 +510,7 @@ class _ZapatoCard extends StatelessWidget {
   final VoidCallback onAddToCart;
   final VoidCallback onDelete;
   final VoidCallback onInventario;
+  final VoidCallback onMerge;
 
   const _ZapatoCard({
     required this.zapato,
@@ -446,6 +519,7 @@ class _ZapatoCard extends StatelessWidget {
     required this.onAddToCart,
     required this.onDelete,
     required this.onInventario,
+    required this.onMerge,
   });
 
   @override
@@ -507,6 +581,11 @@ class _ZapatoCard extends StatelessWidget {
                   onPressed: onInventario,
                 ),
                 IconButton(
+                  icon: const Icon(Icons.merge_type),
+                  tooltip: 'Unir duplicado',
+                  onPressed: onMerge,
+                ),
+                IconButton(
                   icon: const Icon(Icons.delete_outline, color: Colors.red),
                   onPressed: onDelete,
                 ),
@@ -547,6 +626,7 @@ class _ZapatoGridCard extends StatelessWidget {
   final VoidCallback onAddToCart;
   final VoidCallback onDelete;
   final VoidCallback onInventario;
+  final VoidCallback onMerge;
 
   const _ZapatoGridCard({
     required this.zapato,
@@ -555,6 +635,7 @@ class _ZapatoGridCard extends StatelessWidget {
     required this.onAddToCart,
     required this.onDelete,
     required this.onInventario,
+    required this.onMerge,
   });
 
   String _resolveUrl(String? url) {
@@ -688,6 +769,17 @@ class _ZapatoGridCard extends StatelessWidget {
                         height: 30,
                         child: IconButton(
                           padding: EdgeInsets.zero,
+                          icon: const Icon(Icons.merge_type, size: 18),
+                          tooltip: 'Unir duplicado',
+                          onPressed: onMerge,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      SizedBox(
+                        width: 30,
+                        height: 30,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
                           icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
                           onPressed: onDelete,
                         ),
@@ -735,7 +827,7 @@ class _HormaBadge extends StatelessWidget {
 
 class _AddToCartDialog extends StatefulWidget {
   final ZapatoModel zapato;
-  final double precio;
+  final TipoPrecio tipoPrecio;
   final void Function({
     required String? colorId,
     required String? colorNombre,
@@ -744,7 +836,7 @@ class _AddToCartDialog extends StatefulWidget {
 
   const _AddToCartDialog({
     required this.zapato,
-    required this.precio,
+    required this.tipoPrecio,
     required this.onAdd,
   });
 
@@ -813,6 +905,19 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
             .color
             .nombre;
     final horma = widget.zapato.horma;
+    final t = _selectedTalla ?? widget.zapato.medidaInicio.toDouble();
+    double currentPrice;
+    switch (widget.tipoPrecio) {
+      case TipoPrecio.publico:
+        currentPrice = widget.zapato.getPrecioPublicoForTalla(t);
+        break;
+      case TipoPrecio.mayorista:
+        currentPrice = widget.zapato.getPrecioCompraForTalla(t) * 1.3;
+        break;
+      case TipoPrecio.inversionista:
+        currentPrice = widget.zapato.getPrecioCompraForTalla(t) * 1.2;
+        break;
+    }
 
     return AlertDialog(
       title: Row(
@@ -1000,6 +1105,12 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
         ),
       ),
       actions: [
+        Text('\$${formatPrice(currentPrice)}',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: Colors.green.shade700,
+              fontWeight: FontWeight.bold,
+            )),
+        const Spacer(),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancelar'),

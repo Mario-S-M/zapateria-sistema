@@ -49,10 +49,11 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
   List<String> _selectedColorIds = [];
   String? _selectedCategoriaId;
   String? _selectedInversionistaId;
-  String? _fotoUrl;
+  List<String> _fotos = [];
   bool _loading = false;
   Horma _horma = Horma.normal;
   SistemaTalla _sistemaTalla = SistemaTalla.mx;
+  List<_PrecioRangoEntry> _precioRangos = [];
 
   @override
   void initState() {
@@ -69,8 +70,17 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
     _selectedColorIds = widget.zapato?.colores.map((c) => c.colorId).toList() ?? [];
     _selectedCategoriaId = widget.zapato?.categoriaId;
     _selectedInversionistaId = widget.zapato?.inversionistaId;
-    _fotoUrl = widget.zapato?.foto;
+    _fotos = List<String>.from(widget.zapato?.fotos ?? []);
+    if (_fotos.isEmpty && widget.zapato?.foto != null && widget.zapato!.foto!.isNotEmpty) {
+      _fotos = [widget.zapato!.foto!];
+    }
     _horma = widget.zapato?.horma ?? Horma.normal;
+    _precioRangos = (widget.zapato?.precioRangos ?? []).map((r) => _PrecioRangoEntry(
+      inicio: r.medidaInicio.toInt().toString(),
+      fin: r.medidaFin.toInt().toString(),
+      compra: r.precioCompra.toInt().toString(),
+      publico: r.precioPublico.toInt().toString(),
+    )).toList();
     _loadData();
   }
 
@@ -104,6 +114,7 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
     _medidaFinController.dispose();
     _categoriaSearchController.dispose();
     _inversionistaSearchController.dispose();
+    for (final r in _precioRangos) { r.dispose(); }
     super.dispose();
   }
 
@@ -119,6 +130,15 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
     }
     setState(() => _loading = true);
     try {
+      final fotoUrl = _fotos.isNotEmpty ? _fotos[0] : '';
+      final rangos = _precioRangos.map((r) {
+        final ini = double.tryParse(r.inicioCtrl.text.trim()) ?? 0;
+        final fin = double.tryParse(r.finCtrl.text.trim()) ?? 0;
+        final compra = double.tryParse(r.compraCtrl.text.trim()) ?? 0;
+        final publico = double.tryParse(r.publicoCtrl.text.trim()) ?? 0;
+        return PrecioRangoDto(medidaInicio: ini, medidaFin: fin, precioCompra: compra, precioPublico: publico);
+      }).where((r) => r.medidaFin > r.medidaInicio).toList();
+
       if (widget.zapato != null) {
         await zapatoService.update(
           widget.zapato!.id,
@@ -126,7 +146,8 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
             codigoBarras: _codigoBarrasController.text.trim(),
             nombre: _nombreController.text.trim(),
             modelo: _modeloController.text.trim(),
-            foto: _fotoUrl,
+            foto: fotoUrl.isNotEmpty ? fotoUrl : null,
+            fotos: _fotos,
             precioCompra: double.tryParse(_precioCompraController.text.trim()),
             precioPublico: double.tryParse(_precioPublicoController.text.trim()),
             medidaInicio: _mxInicio,
@@ -135,6 +156,7 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
             colorIds: _selectedColorIds,
             categoriaId: _selectedCategoriaId,
             inversionistaId: _selectedInversionistaId,
+            precioRangos: rangos,
           ),
         );
       } else {
@@ -142,7 +164,8 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
           codigoBarras: _codigoBarrasController.text.trim(),
           nombre: _nombreController.text.trim(),
           modelo: _modeloController.text.trim(),
-          foto: _fotoUrl ?? '',
+          foto: fotoUrl,
+          fotos: _fotos,
           precioCompra: double.tryParse(_precioCompraController.text.trim()) ?? 0,
           precioPublico: double.tryParse(_precioPublicoController.text.trim()) ?? 0,
           medidaInicio: _mxInicio,
@@ -151,6 +174,7 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
           colorIds: _selectedColorIds,
           categoriaId: _selectedCategoriaId,
           inversionistaId: _selectedInversionistaId,
+          precioRangos: rangos,
         );
         await zapatoService.create(dto);
       }
@@ -292,6 +316,8 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
           const SizedBox(height: 24),
           _buildColorsSection(theme, crossAxisCount: 6),
           const SizedBox(height: 24),
+          _buildPrecioRangosSection(theme),
+          const SizedBox(height: 24),
           _buildSummaryCard(theme),
           const SizedBox(height: 24),
           _buildSaveButton(),
@@ -305,9 +331,9 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ImagePickerComponent(
-          currentImage: _fotoUrl,
-          onImageUploaded: (url) => setState(() => _fotoUrl = url),
+        MultiImagePickerComponent(
+          images: _fotos,
+          onChanged: (list) => setState(() => _fotos = list),
         ),
         const SizedBox(height: 16),
         TextFormField(
@@ -448,9 +474,9 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
             ],
           ),
           const SizedBox(height: 16),
-          ImagePickerComponent(
-            currentImage: _fotoUrl,
-            onImageUploaded: (url) => setState(() => _fotoUrl = url),
+          MultiImagePickerComponent(
+            images: _fotos,
+            onChanged: (list) => setState(() => _fotos = list),
           ),
           const SizedBox(height: 16),
           TextFormField(
@@ -531,6 +557,8 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
           TextButton(onPressed: () => _showCreateInversionistaDialog(context), child: const Text('+ Crear inversionista')),
           const SizedBox(height: 16),
           _buildColorsSection(theme, crossAxisCount: 3),
+          const SizedBox(height: 16),
+          _buildPrecioRangosSection(theme),
           const SizedBox(height: 24),
           _buildSummaryCard(theme),
           const SizedBox(height: 24),
@@ -542,6 +570,94 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
   }
 
   // ── SHARED SECTIONS ──────────────────────────────────────────────────────────
+
+  Widget _buildPrecioRangosSection(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Precios por rango de talla', style: theme.textTheme.titleMedium),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: () => setState(() => _precioRangos.add(_PrecioRangoEntry())),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Agregar rango'),
+            ),
+          ],
+        ),
+        if (_precioRangos.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text('Precio único para todas las tallas',
+                style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
+          ),
+        ...List.generate(_precioRangos.length, (i) {
+          final r = _precioRangos[i];
+          return Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text('Rango ${i + 1}', style: theme.textTheme.labelLarge),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                        onPressed: () => setState(() {
+                          _precioRangos[i].dispose();
+                          _precioRangos.removeAt(i);
+                        }),
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(child: TextFormField(
+                        controller: r.inicioCtrl,
+                        decoration: const InputDecoration(labelText: 'Talla inicio', isDense: true, border: OutlineInputBorder()),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        onChanged: (_) => setState(() {}),
+                      )),
+                      const SizedBox(width: 8),
+                      Expanded(child: TextFormField(
+                        controller: r.finCtrl,
+                        decoration: const InputDecoration(labelText: 'Talla fin', isDense: true, border: OutlineInputBorder()),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        onChanged: (_) => setState(() {}),
+                      )),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(child: TextFormField(
+                        controller: r.compraCtrl,
+                        decoration: const InputDecoration(labelText: 'Precio compra', isDense: true, border: OutlineInputBorder(), prefixText: '\$'),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      )),
+                      const SizedBox(width: 8),
+                      Expanded(child: TextFormField(
+                        controller: r.publicoCtrl,
+                        decoration: const InputDecoration(labelText: 'Precio público', isDense: true, border: OutlineInputBorder(), prefixText: '\$'),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      )),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
 
   Widget _buildColorsSection(ThemeData theme, {required int crossAxisCount}) {
     return Column(
@@ -944,8 +1060,7 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
                       }
                       final duplicado = _colores.any((c) =>
                         c.isCombo == true &&
-                        ((c.primaryColor == effPrimHex && c.secondaryColor == effSecHex) ||
-                         (c.primaryColor == effSecHex  && c.secondaryColor == effPrimHex)));
+                        c.primaryColor == effPrimHex && c.secondaryColor == effSecHex);
                       if (duplicado) {
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ya existe una combinación con esos dos colores')));
                         return;
@@ -1260,5 +1375,25 @@ extension _ListExt<T> on List<T> {
   T? firstWhereOrNull(bool Function(T) test) {
     for (final e in this) { if (test(e)) return e; }
     return null;
+  }
+}
+
+class _PrecioRangoEntry {
+  final TextEditingController inicioCtrl;
+  final TextEditingController finCtrl;
+  final TextEditingController compraCtrl;
+  final TextEditingController publicoCtrl;
+
+  _PrecioRangoEntry({String inicio = '', String fin = '', String compra = '', String publico = ''})
+      : inicioCtrl = TextEditingController(text: inicio),
+        finCtrl = TextEditingController(text: fin),
+        compraCtrl = TextEditingController(text: compra),
+        publicoCtrl = TextEditingController(text: publico);
+
+  void dispose() {
+    inicioCtrl.dispose();
+    finCtrl.dispose();
+    compraCtrl.dispose();
+    publicoCtrl.dispose();
   }
 }

@@ -12,6 +12,7 @@ import { ZapatoColor } from './zapato-color.entity';
 import { VentaItem } from './venta-item.entity';
 import { Categoria } from './categoria.entity';
 import { Inversionista } from './inversionista.entity';
+import { PrecioRango } from './precio-rango.entity';
 
 export enum Horma {
   NORMAL = 'NORMAL',
@@ -35,6 +36,9 @@ export class Zapato {
 
   @Column()
   foto: string;
+
+  @Column({ type: 'simple-json', nullable: true })
+  fotos: string[] | null;
 
   @Column('decimal', { precision: 10, scale: 2 })
   precioCompra: number;
@@ -70,6 +74,9 @@ export class Zapato {
 
   @OneToMany(() => VentaItem, (ventaItem) => ventaItem.zapato)
   ventaItems: VentaItem[];
+
+  @OneToMany(() => PrecioRango, (pr) => pr.zapato)
+  precioRangos: PrecioRango[];
 
   @CreateDateColumn()
   createdAt: Date;

@@ -31,9 +31,35 @@ class ZapatoService {
     return ZapatoModel.fromJson(response.data);
   }
 
+  Future<ZapatoModel> merge(String originalId, String duplicateId) async {
+    final response = await _dio.post('/zapatos/$originalId/merge/$duplicateId');
+    return ZapatoModel.fromJson(response.data);
+  }
+
   Future<void> delete(String id) async {
     await _dio.delete('/zapatos/$id');
   }
+}
+
+class PrecioRangoDto {
+  final double medidaInicio;
+  final double medidaFin;
+  final double precioCompra;
+  final double precioPublico;
+
+  PrecioRangoDto({
+    required this.medidaInicio,
+    required this.medidaFin,
+    required this.precioCompra,
+    required this.precioPublico,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'medidaInicio': medidaInicio,
+    'medidaFin': medidaFin,
+    'precioCompra': precioCompra,
+    'precioPublico': precioPublico,
+  };
 }
 
 class ZapatoCreateDto {
@@ -41,6 +67,7 @@ class ZapatoCreateDto {
   final String nombre;
   final String modelo;
   final String foto;
+  final List<String> fotos;
   final double precioCompra;
   final double precioPublico;
   final int medidaInicio;
@@ -49,12 +76,14 @@ class ZapatoCreateDto {
   final List<String> colorIds;
   final String? categoriaId;
   final String? inversionistaId;
+  final List<PrecioRangoDto> precioRangos;
 
   ZapatoCreateDto({
     required this.codigoBarras,
     required this.nombre,
     required this.modelo,
     required this.foto,
+    this.fotos = const [],
     required this.precioCompra,
     required this.precioPublico,
     required this.medidaInicio,
@@ -63,6 +92,7 @@ class ZapatoCreateDto {
     required this.colorIds,
     this.categoriaId,
     this.inversionistaId,
+    this.precioRangos = const [],
   });
 
   Map<String, dynamic> toJson() {
@@ -71,6 +101,7 @@ class ZapatoCreateDto {
       'nombre': nombre,
       'modelo': modelo,
       'foto': foto,
+      'fotos': fotos,
       'precioCompra': precioCompra,
       'precioPublico': precioPublico,
       'medidaInicio': medidaInicio,
@@ -79,6 +110,7 @@ class ZapatoCreateDto {
       'colorIds': colorIds,
       if (categoriaId != null) 'categoriaId': categoriaId,
       if (inversionistaId != null) 'inversionistaId': inversionistaId,
+      if (precioRangos.isNotEmpty) 'precioRangos': precioRangos.map((r) => r.toJson()).toList(),
     };
   }
 }
@@ -88,6 +120,7 @@ class ZapatoUpdateDto {
   final String? nombre;
   final String? modelo;
   final String? foto;
+  final List<String>? fotos;
   final double? precioCompra;
   final double? precioPublico;
   final int? medidaInicio;
@@ -96,12 +129,14 @@ class ZapatoUpdateDto {
   final List<String>? colorIds;
   final String? categoriaId;
   final String? inversionistaId;
+  final List<PrecioRangoDto>? precioRangos;
 
   ZapatoUpdateDto({
     this.codigoBarras,
     this.nombre,
     this.modelo,
     this.foto,
+    this.fotos,
     this.precioCompra,
     this.precioPublico,
     this.medidaInicio,
@@ -110,6 +145,7 @@ class ZapatoUpdateDto {
     this.colorIds,
     this.categoriaId,
     this.inversionistaId,
+    this.precioRangos,
   });
 
   Map<String, dynamic> toJson() {
@@ -118,6 +154,7 @@ class ZapatoUpdateDto {
       if (nombre != null) 'nombre': nombre,
       if (modelo != null) 'modelo': modelo,
       if (foto != null) 'foto': foto,
+      if (fotos != null) 'fotos': fotos,
       if (precioCompra != null) 'precioCompra': precioCompra,
       if (precioPublico != null) 'precioPublico': precioPublico,
       if (medidaInicio != null) 'medidaInicio': medidaInicio,
@@ -126,6 +163,7 @@ class ZapatoUpdateDto {
       if (colorIds != null) 'colorIds': colorIds,
       if (categoriaId != null) 'categoriaId': categoriaId,
       if (inversionistaId != null) 'inversionistaId': inversionistaId,
+      if (precioRangos != null) 'precioRangos': precioRangos!.map((r) => r.toJson()).toList(),
     };
   }
 }
