@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/services/inventario_service.dart';
 import 'package:zapateria_flutter/components/color_circle.dart';
@@ -46,13 +45,13 @@ class _InventarioScreenState extends State<InventarioScreen> {
     for (final zc in _colores) {
       _controllers[zc.colorId] = {};
       for (final t in tallas) {
-        _controllers[zc.colorId]![t] = TextEditingController(text: '0');
+        _controllers[zc.colorId]![t] = TextEditingController(text: '1');
       }
     }
     if (_colores.isEmpty) {
       _controllers['__none__'] = {};
       for (final t in tallas) {
-        _controllers['__none__']![t] = TextEditingController(text: '0');
+        _controllers['__none__']![t] = TextEditingController(text: '1');
       }
     }
   }
@@ -133,7 +132,7 @@ class _InventarioScreenState extends State<InventarioScreen> {
             const Text('Inventario', style: TextStyle(fontSize: 18)),
             Text(
               '${widget.zapato.nombre} — ${widget.zapato.modelo}',
-              style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withOpacity(0.7)),
+              style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
             ),
           ],
         ),
@@ -154,9 +153,15 @@ class _InventarioScreenState extends State<InventarioScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _tallas.isEmpty
               ? _buildEmptyRange(theme)
-              : _colores.isEmpty
-                  ? _buildNoColorsTable(theme)
-                  : _buildMatrix(theme),
+              : LayoutBuilder(
+                  builder: (ctx, constraints) {
+                    final isMobile = constraints.maxWidth < 700;
+                    if (isMobile) return _buildMobileAccordion(theme);
+                    return _colores.isEmpty
+                        ? _buildNoColorsTable(theme)
+                        : _buildMatrix(theme);
+                  },
+                ),
     );
   }
 
@@ -173,6 +178,31 @@ class _InventarioScreenState extends State<InventarioScreen> {
               style: theme.textTheme.bodySmall),
         ],
       ),
+    );
+  }
+
+  Widget _buildMobileAccordion(ThemeData theme) {
+    final rows = _colores.isNotEmpty
+        ? _colores.map((zc) => _InventarioRow(
+              label: zc.color.nombre,
+              colorWidget: ColorCircle(color: zc.color, size: 20),
+              controllers: _controllers[zc.colorId]!,
+              tallas: _tallas,
+            )).toList()
+        : [
+            _InventarioRow(
+              label: 'Sin color',
+              colorWidget: Icon(Icons.circle_outlined, color: theme.hintColor, size: 20),
+              controllers: _controllers['__none__']!,
+              tallas: _tallas,
+            )
+          ];
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(12),
+      itemCount: rows.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (ctx, i) => _MobileColorAccordion(row: rows[i]),
     );
   }
 
@@ -202,8 +232,6 @@ class _InventarioScreenState extends State<InventarioScreen> {
   }
 }
 
-String _tallaLabel(double t) =>
-    t == t.truncateToDouble() ? t.toInt().toString() : t.toString();
 
 // ── Table widget ──────────────────────────────────────────────────────────────
 
@@ -227,7 +255,7 @@ class _InventarioTable extends StatelessWidget {
 
   const _InventarioTable({required this.tallas, required this.rows});
 
-  static const double _colWidth = 80.0;
+  static const double _colWidth = 100.0;
   static const double _labelWidth = 120.0;
 
   @override
@@ -396,36 +424,191 @@ class _DataRowState extends State<_DataRow> {
   }
 }
 
-class _StockCell extends StatelessWidget {
+class _StockCell extends StatefulWidget {
   final TextEditingController controller;
   final VoidCallback onChanged;
 
   const _StockCell({required this.controller, required this.onChanged});
 
   @override
+  State<_StockCell> createState() => _StockCellState();
+}
+
+class _StockCellState extends State<_StockCell> {
+  int get _value => int.tryParse(widget.controller.text) ?? 0;
+
+  void _increment() {
+    widget.controller.text = '${_value + 1}';
+    widget.onChanged();
+    setState(() {});
+  }
+
+  void _decrement() {
+    final v = _value;
+    if (v <= 0) return;
+    widget.controller.text = '${v - 1}';
+    widget.onChanged();
+    setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final value = int.tryParse(controller.text) ?? 0;
-    return TextFormField(
-      controller: controller,
-      textAlign: TextAlign.center,
-      keyboardType: TextInputType.number,
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      onChanged: (_) => onChanged(),
-      style: theme.textTheme.bodyMedium?.copyWith(
-        fontWeight: FontWeight.w600,
-        color: value > 0 ? theme.colorScheme.onSurface : theme.hintColor,
+    final value = _value;
+    final hasStock = value > 0;
+    return Container(
+      height: 36,
+      decoration: BoxDecoration(
+        color: hasStock ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4) : null,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: hasStock
+              ? theme.colorScheme.primary.withValues(alpha: 0.5)
+              : theme.colorScheme.outline.withValues(alpha: 0.3),
+        ),
       ),
-      decoration: InputDecoration(
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-        filled: value > 0,
-        fillColor: value > 0 ? theme.colorScheme.primaryContainer.withOpacity(0.4) : null,
+      child: Row(
+        children: [
+          _CounterButton(
+            icon: Icons.remove,
+            onPressed: hasStock ? _decrement : null,
+          ),
+          Expanded(
+            child: Text(
+              '$value',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: hasStock ? theme.colorScheme.onSurface : theme.hintColor,
+              ),
+            ),
+          ),
+          _CounterButton(
+            icon: Icons.add,
+            onPressed: _increment,
+          ),
+        ],
       ),
     );
   }
 }
+
+class _CounterButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  const _CounterButton({required this.icon, this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(6),
+      child: SizedBox(
+        width: 28,
+        height: 36,
+        child: Icon(
+          icon,
+          size: 14,
+          color: onPressed != null ? theme.colorScheme.primary : theme.disabledColor,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Mobile accordion (vertical per color) ────────────────────────────────────
+
+class _MobileColorAccordion extends StatefulWidget {
+  final _InventarioRow row;
+
+  const _MobileColorAccordion({required this.row});
+
+  @override
+  State<_MobileColorAccordion> createState() => _MobileColorAccordionState();
+}
+
+class _MobileColorAccordionState extends State<_MobileColorAccordion> {
+  int get _total => widget.row.tallas.fold(
+      0, (s, t) => s + (int.tryParse(widget.row.controllers[t]?.text ?? '0') ?? 0));
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        leading: widget.row.colorWidget,
+        title: Text(widget.row.label, style: theme.textTheme.bodyMedium),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '$_total',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.expand_more),
+          ],
+        ),
+        initiallyExpanded: true,
+        children: [
+          ...widget.row.tallas.map((t) {
+            final ctrl = widget.row.controllers[t]!;
+            final eq = equivalencias(t);
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 100,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'MX ${formatTalla(eq.mx)}',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                        Text('EU ${formatTalla(eq.eu)} / US ${formatTalla(eq.us)}',
+                            style: theme.textTheme.labelSmall?.copyWith(color: theme.hintColor)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _StockCell(
+                      controller: ctrl,
+                      onChanged: () => setState(() {}),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Totals row ────────────────────────────────────────────────────────────────
 
 class _TotalsRow extends StatefulWidget {
   final List<_InventarioRow> rows;
