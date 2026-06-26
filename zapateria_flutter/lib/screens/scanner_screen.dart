@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:barcode_scan2/barcode_scan2.dart';
 import 'package:provider/provider.dart';
 import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/providers/cart_provider.dart';
@@ -16,61 +16,56 @@ class ScannerScreen extends StatefulWidget {
 }
 
 class _ScannerScreenState extends State<ScannerScreen> {
-  MobileScannerController controller = MobileScannerController(
-    torchEnabled: false,
-    facing: CameraFacing.back,
-    formats: const [
-      BarcodeFormat.code128,
-      BarcodeFormat.code39,
-      BarcodeFormat.ean13,
-      BarcodeFormat.ean8,
-      BarcodeFormat.upcA,
-      BarcodeFormat.upcE,
-      BarcodeFormat.qrCode,
-      BarcodeFormat.pdf417,
-    ],
-  );
-
   bool _isProcessing = false;
-  MobileScannerState? _scannerState;
+  String? _lastCode;
 
-  @override
-  void initState() {
-    super.initState();
-    controller.addListener(_onStateChange);
-  }
-
-  void _onStateChange() {
-    if (mounted) setState(() => _scannerState = controller.value);
-  }
-
-  @override
-  void dispose() {
-    controller.removeListener(_onStateChange);
-    controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _handleScan(String code) async {
+  Future<void> _scan() async {
     if (_isProcessing) return;
-    setState(() => _isProcessing = true);
 
+    ScanResult result;
     try {
-      final zapato = await zapatoService.getByCodigoBarras(code);
-      final inventario = await inventarioService.getByZapato(zapato.id);
-
-      if (!mounted) return;
-
-      await _showAddToCartDialog(zapato, inventario);
+      result = await BarcodeScanner.scan(
+        options: const ScanOptions(
+          restrictFormat: [],
+          useCamera: -1,
+          autoEnableFlash: false,
+          android: AndroidOptions(aspectTolerance: 0.00, useAutoFocus: true),
+        ),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Zapato no encontrado')),
+          SnackBar(content: Text('Error al abrir escáner: $e')),
         );
       }
+      return;
     }
 
-    if (mounted) setState(() => _isProcessing = false);
+    if (result.type == ResultType.Cancelled) return;
+    if (result.type == ResultType.Error || result.rawContent.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo leer el código')));
+      return;
+    }
+
+    setState(() { _isProcessing = true; _lastCode = result.rawContent; });
+
+    try {
+      final zapato = await zapatoService.getByCodigoBarras(result.rawContent);
+      final inventario = await inventarioService.getByZapato(zapato.id);
+      if (!mounted) return;
+      await _showAddToCartDialog(zapato, inventario);
+    } catch (e) {
+      if (mounted) {
+        final msg = e.toString().contains('SocketException') || e.toString().contains('Connection')
+            ? 'Error de red: verifica que el servidor esté encendido'
+            : 'Zapato no encontrado: ${result.rawContent}';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), duration: const Duration(seconds: 4)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
   }
 
   Future<void> _showAddToCartDialog(ZapatoModel zapato, List<InventarioItemModel> inventario) async {
@@ -139,10 +134,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                         );
                         final isSelected = selectedColorId == e.key;
                         return GestureDetector(
-                          onTap: () => setModal(() {
-                            selectedColorId = e.key;
-                            selectedTalla = null;
-                          }),
+                          onTap: () => setModal(() { selectedColorId = e.key; selectedTalla = null; }),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -173,10 +165,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
                       children: tallasDisp.map((item) {
                         final t = item.talla;
                         final label = t % 1 == 0 ? t.toInt().toString() : t.toString();
-                        final isSelected = selectedTalla == t;
                         return ChoiceChip(
                           label: Text(label),
-                          selected: isSelected,
+                          selected: selectedTalla == t,
                           onSelected: (_) => setModal(() => selectedTalla = t),
                         );
                       }).toList(),
@@ -192,10 +183,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
               ),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancelar'),
-              ),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
               ElevatedButton(
                 onPressed: (selectedTalla == null && inventario.isNotEmpty) ? null : () {
                   final tallaForAdd = selectedTalla ?? zapato.medidaInicio.toDouble();
@@ -211,16 +199,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
                       precioFinal = zapato.getPrecioCompraForTalla(tallaForAdd) * 1.2;
                       break;
                   }
-
                   final colorNombre = selectedColorId != null ? coloresConStock[selectedColorId] : null;
-                  cart.addItem(
-                    zapato,
-                    1,
-                    precioFinal,
-                    colorId: selectedColorId,
-                    colorNombre: colorNombre,
-                    talla: selectedTalla,
-                  );
+                  cart.addItem(zapato, 1, precioFinal,
+                      colorId: selectedColorId, colorNombre: colorNombre, talla: selectedTalla);
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('${zapato.nombre} agregado al carrito')),
@@ -237,78 +218,38 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = _scannerState;
-    if (state != null && state.error != null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Escáner')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.camera_alt_outlined, size: 64, color: Colors.grey),
-              const SizedBox(height: 16),
-              const Text('No se pudo acceder a la cámara.'),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () => controller.start(),
-                child: const Text('Reintentar'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Escáner de código de barras')),
-      body: Stack(
-        children: [
-          MobileScanner(
-            controller: controller,
-            onDetect: (capture) {
-              if (!_isProcessing) {
-                final barcodes = capture.barcodes;
-                if (barcodes.isNotEmpty) {
-                  final code = barcodes.first.rawValue;
-                  if (code != null) _handleScan(code);
-                }
-              }
-            },
-          ),
-          Center(
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white, width: 3),
-                borderRadius: BorderRadius.circular(16),
-              ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.qr_code_scanner, size: 100, color: theme.colorScheme.primary.withValues(alpha: 0.7)),
+            const SizedBox(height: 24),
+            Text(
+              _isProcessing
+                  ? 'Buscando zapato...'
+                  : _lastCode != null
+                      ? 'Último código: $_lastCode'
+                      : 'Toca el botón para escanear',
+              style: theme.textTheme.bodyLarge,
+              textAlign: TextAlign.center,
             ),
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  _isProcessing ? 'Procesando...' : 'Escanea el código de barras',
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async => controller.toggleTorch(),
-        icon: const Icon(Icons.flash_on),
-        label: const Text('Torch'),
+            const SizedBox(height: 32),
+            _isProcessing
+                ? const CircularProgressIndicator()
+                : FilledButton.icon(
+                    onPressed: _scan,
+                    icon: const Icon(Icons.camera_alt),
+                    label: const Text('Escanear código'),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      textStyle: const TextStyle(fontSize: 18),
+                    ),
+                  ),
+          ],
+        ),
       ),
     );
   }

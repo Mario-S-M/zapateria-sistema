@@ -559,20 +559,15 @@ class _ZapatoCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onEdit,
-                    icon: const Icon(Icons.edit, size: 16),
-                    label: const Text('Editar'),
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  tooltip: 'Editar',
+                  onPressed: onEdit,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: onAddToCart,
-                    icon: const Icon(Icons.shopping_cart, size: 16),
-                    label: const Text('Carrito'),
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.shopping_cart),
+                  tooltip: 'Carrito',
+                  onPressed: onAddToCart,
                 ),
                 const SizedBox(width: 8),
                 IconButton(
@@ -1105,26 +1100,31 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
         ),
       ),
       actions: [
-        Text('\$${formatPrice(currentPrice)}',
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: Colors.green.shade700,
-              fontWeight: FontWeight.bold,
-            )),
-        const Spacer(),
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          onPressed: () {
-            Navigator.pop(context);
-            widget.onAdd(
-              colorId: _selectedColorId,
-              colorNombre: colorNombre,
-              talla: _selectedTalla,
-            );
-          },
-          child: const Text('Agregar'),
+        Row(
+          children: [
+            Text('\$${formatPrice(currentPrice)}',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: Colors.green.shade700,
+                  fontWeight: FontWeight.bold,
+                )),
+            const Spacer(),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(context);
+                widget.onAdd(
+                  colorId: _selectedColorId,
+                  colorNombre: colorNombre,
+                  talla: _selectedTalla,
+                );
+              },
+              child: const Text('Agregar'),
+            ),
+          ],
         ),
       ],
     );

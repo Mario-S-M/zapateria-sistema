@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:barcode_scan2/barcode_scan2.dart';
 
 class BarcodeScannerWidget extends StatefulWidget {
   final Function(String) onScan;
@@ -16,97 +16,90 @@ class BarcodeScannerWidget extends StatefulWidget {
 }
 
 class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget> {
-  MobileScannerController controller = MobileScannerController(
-    torchEnabled: false,
-    facing: CameraFacing.back,
-    formats: const [
-      BarcodeFormat.code128,
-      BarcodeFormat.code39,
-      BarcodeFormat.ean13,
-      BarcodeFormat.ean8,
-      BarcodeFormat.upcA,
-      BarcodeFormat.upcE,
-      BarcodeFormat.qrCode,
-      BarcodeFormat.pdf417,
-    ],
-  );
-
-  bool _isScanning = true;
+  bool _scanning = false;
 
   @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startScan());
+  }
+
+  Future<void> _startScan() async {
+    if (_scanning) return;
+    setState(() => _scanning = true);
+
+    ScanResult result;
+    try {
+      result = await BarcodeScanner.scan(
+        options: const ScanOptions(
+          restrictFormat: [],
+          useCamera: -1,
+          autoEnableFlash: false,
+          android: AndroidOptions(aspectTolerance: 0.00, useAutoFocus: true),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al abrir escáner: $e')),
+        );
+        widget.onCancel();
+      }
+      return;
+    } finally {
+      if (mounted) setState(() => _scanning = false);
+    }
+
+    if (!mounted) return;
+
+    if (result.type == ResultType.Cancelled) {
+      widget.onCancel();
+      return;
+    }
+
+    if (result.type == ResultType.Error || result.rawContent.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo leer el código')),
+      );
+      widget.onCancel();
+      return;
+    }
+
+    widget.onScan(result.rawContent);
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
-        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: widget.onCancel,
-        ),
+        leading: IconButton(icon: const Icon(Icons.close), onPressed: widget.onCancel),
         title: const Text('Escanear código', style: TextStyle(color: Colors.white)),
       ),
-      body: Stack(
-        children: [
-          MobileScanner(
-            controller: controller,
-            onDetect: (capture) {
-              if (!_isScanning) return;
-              final barcodes = capture.barcodes;
-              if (barcodes.isNotEmpty) {
-                final code = barcodes.first.rawValue;
-                if (code != null && code.isNotEmpty) {
-                  setState(() => _isScanning = false);
-                  widget.onScan(code);
-                }
-              }
-            },
-          ),
-          Center(
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white, width: 3),
-                borderRadius: BorderRadius.circular(16),
-              ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.qr_code_scanner, size: 80, color: Colors.white.withValues(alpha: 0.7)),
+            const SizedBox(height: 24),
+            Text(
+              _scanning ? 'Abriendo escáner...' : 'Toca para escanear',
+              style: const TextStyle(color: Colors.white, fontSize: 16),
             ),
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  _isScanning
-                      ? 'Escanea el código de barras'
-                      : 'Procesando...',
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
+            const SizedBox(height: 24),
+            if (_scanning)
+              const CircularProgressIndicator(color: Colors.white)
+            else
+              ElevatedButton.icon(
+                onPressed: _startScan,
+                icon: const Icon(Icons.camera_alt),
+                label: const Text('Escanear'),
               ),
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          await controller.toggleTorch();
-        },
-        icon: const Icon(Icons.flash_on),
-        label: const Text('Torch'),
+          ],
+        ),
       ),
     );
   }
