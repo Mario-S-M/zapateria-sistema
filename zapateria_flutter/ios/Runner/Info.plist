@@ -4,6 +4,10 @@
 <dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Se necesita acceso a la cámara para escanear códigos de barras</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Se necesita Bluetooth para imprimir tickets en la impresora térmica</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Se necesita Bluetooth para imprimir tickets en la impresora térmica</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

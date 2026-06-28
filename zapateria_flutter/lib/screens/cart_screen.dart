@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:zapateria_flutter/models/models.dart';
+import 'package:zapateria_flutter/models/ticket_data.dart';
 import 'package:zapateria_flutter/providers/cart_provider.dart';
+import 'package:zapateria_flutter/screens/ticket_screen.dart';
 import 'package:zapateria_flutter/services/inversionista_service.dart';
 import 'package:zapateria_flutter/services/venta_service.dart';
 import 'package:zapateria_flutter/components/zapato_image.dart';
@@ -77,8 +79,34 @@ class _CartScreenState extends State<CartScreen> {
       }
     }
 
+    // Capture ticket data before clearing cart
+    final efectivoAmount = cart.metodoPago == MetodoPago.mixto
+        ? _montoEfectivo(cart.total)
+        : (cart.metodoPago == MetodoPago.efectivo ? cart.total : 0.0);
+    final billete = double.tryParse(_billeteCtrl.text.replaceAll(',', '.')) ?? 0;
+    final cambio = billete > 0 ? billete - efectivoAmount : null;
+
+    String? invNombre;
+    if (cart.inversionistaId != null) {
+      try {
+        invNombre = _inversionistas
+            .firstWhere((i) => i.id == cart.inversionistaId)
+            .nombre;
+      } catch (_) {}
+    }
+
+    final ticketItems = cart.items.map((i) => TicketItem(
+      nombre: i.zapato.nombre,
+      modelo: i.zapato.modelo,
+      color: i.colorNombre,
+      talla: i.talla,
+      cantidad: i.cantidad,
+      precioUnitario: i.precioUnitario,
+    )).toList();
+
     try {
       final folio = 'V-${DateTime.now().millisecondsSinceEpoch}';
+      final fecha = DateTime.now();
       await ventaService.create(
         folio: folio,
         tipoPrecio: cart.tipoPrecio,
@@ -93,16 +121,42 @@ class _CartScreenState extends State<CartScreen> {
         metodoPago: cart.metodoPago,
         montoTarjeta: montoTarjeta,
       );
+
+      final ticket = TicketData(
+        folio: folio,
+        fecha: fecha,
+        items: ticketItems,
+        total: cart.total,
+        metodoPago: _metodoPagoLabel(cart.metodoPago),
+        montoTarjeta: montoTarjeta > 0 ? montoTarjeta : null,
+        montoRecibido: billete > 0 ? billete : null,
+        cambio: cambio != null && cambio >= 0 ? cambio : null,
+        tipoPrecio: _tipoPrecioLabel(cart.tipoPrecio),
+        inversionistaNombre: invNombre,
+      );
+
       cart.clearCart();
       _montoTarjetaCtrl.clear();
       _billeteCtrl.clear();
+
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Venta registrada exitosamente')));
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => TicketScreen(ticket: ticket)),
+        );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
+    }
+  }
+
+  String _metodoPagoLabel(MetodoPago mp) {
+    switch (mp) {
+      case MetodoPago.efectivo: return 'Efectivo';
+      case MetodoPago.tarjeta: return 'Tarjeta';
+      case MetodoPago.mixto: return 'Mixto';
     }
   }
 

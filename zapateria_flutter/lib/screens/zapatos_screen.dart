@@ -4,8 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/providers/cart_provider.dart';
 import 'package:zapateria_flutter/services/zapato_service.dart';
-import 'package:zapateria_flutter/services/api_client.dart';
 import 'package:zapateria_flutter/utils/price_utils.dart';
+import 'package:zapateria_flutter/components/image_picker_component.dart';
 import 'package:zapateria_flutter/screens/zapato_form_screen.dart';
 import 'package:zapateria_flutter/screens/inventario_screen.dart';
 import 'package:zapateria_flutter/services/inventario_service.dart';
@@ -104,17 +104,20 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
       builder: (_) => _AddToCartDialog(
         zapato: zapato,
         tipoPrecio: cartProvider.tipoPrecio,
-        onAdd: ({required String? colorId, required String? colorNombre, required double? talla}) {
-          cartProvider.addItem(
-            zapato,
-            1,
-            _getPrecioForTalla(zapato, cartProvider.tipoPrecio, talla),
-            colorId: colorId,
-            colorNombre: colorNombre,
-            talla: talla,
-          );
+        onAdd: ({required String? colorId, required String? colorNombre, required List<({double talla, int cantidad})> tallasCantidad}) {
+          for (final item in tallasCantidad) {
+            cartProvider.addItem(
+              zapato,
+              item.cantidad,
+              _getPrecioForTalla(zapato, cartProvider.tipoPrecio, item.talla),
+              colorId: colorId,
+              colorNombre: colorNombre,
+              talla: item.talla,
+            );
+          }
+          final total = tallasCantidad.fold(0, (s, i) => s + i.cantidad);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${zapato.nombre} agregado al carrito')),
+            SnackBar(content: Text('${zapato.nombre} agregado al carrito ($total ${total == 1 ? 'par' : 'pares'})')),
           );
         },
       ),
@@ -276,8 +279,6 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
                             ? _buildWebGrid(context, cartProvider)
                             : _buildMobileList(context, cartProvider),
           ),
-          if (!_loading && _error == null && _filtered.isNotEmpty && _totalPages > 1)
-            _buildPaginator(theme),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -285,6 +286,9 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
         icon: const Icon(Icons.add),
         label: const Text('Nuevo'),
       ),
+      bottomNavigationBar: (!_loading && _error == null && _filtered.isNotEmpty && _totalPages > 1)
+          ? _buildPaginator(theme)
+          : null,
     );
   }
 
@@ -541,7 +545,10 @@ class _ZapatoCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                ZapatoImage(imageUrl: zapato.foto, height: 80, width: 80),
+                SizedBox(
+                  width: 80, height: 80,
+                  child: _ZapatoCarousel(fotos: _getEffectiveFotos(zapato)),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -633,16 +640,6 @@ class _ZapatoGridCard extends StatelessWidget {
     required this.onMerge,
   });
 
-  String _resolveUrl(String? url) {
-    if (url == null || url.isEmpty) return '';
-    String path = url;
-    if (url.startsWith('http')) {
-      path = Uri.parse(url).path.replaceFirst(RegExp(r'^/'), '');
-    }
-    if (path.startsWith('api/')) path = path.substring(4);
-    return '$baseUrl/$path';
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -653,8 +650,6 @@ class _ZapatoGridCard extends StatelessWidget {
       case TipoPrecio.inversionista: precio = zapato.precioCompra * 1.2; break;
     }
 
-    final imageUrl = _resolveUrl(zapato.foto);
-
     return Card(
       clipBehavior: Clip.antiAlias,
       elevation: 2,
@@ -664,23 +659,10 @@ class _ZapatoGridCard extends StatelessWidget {
         children: [
           Expanded(
             flex: 5,
-            child: imageUrl.isEmpty
-                ? Container(
-                    color: Colors.grey[200],
-                    child: Center(child: Icon(Icons.inventory_2, size: 40, color: Colors.grey[400])),
-                  )
-                : Image.network(
-                    imageUrl,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: Colors.grey[200],
-                      child: Center(child: Icon(Icons.broken_image, color: Colors.grey[400])),
-                    ),
-                    loadingBuilder: (_, child, progress) => progress == null
-                        ? child
-                        : Container(color: Colors.grey[200], child: const Center(child: CircularProgressIndicator())),
-                  ),
+            child: _ZapatoCarousel(
+              fotos: _getEffectiveFotos(zapato),
+              borderRadius: BorderRadius.zero,
+            ),
           ),
           Expanded(
             flex: 4,
@@ -791,6 +773,103 @@ class _ZapatoGridCard extends StatelessWidget {
   }
 }
 
+List<String> _getEffectiveFotos(ZapatoModel z) {
+  if (z.fotos.isNotEmpty) return z.fotos;
+  if (z.foto != null && z.foto!.isNotEmpty) return [z.foto!];
+  return [];
+}
+
+class _ZapatoCarousel extends StatefulWidget {
+  final List<String> fotos;
+  final BorderRadius borderRadius;
+
+  const _ZapatoCarousel({
+    required this.fotos,
+    this.borderRadius = const BorderRadius.all(Radius.circular(8)),
+  });
+
+  @override
+  State<_ZapatoCarousel> createState() => _ZapatoCarouselState();
+}
+
+class _ZapatoCarouselState extends State<_ZapatoCarousel> {
+  late PageController _pageController;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fotos = widget.fotos;
+
+    if (fotos.isEmpty) {
+      return ClipRRect(
+        borderRadius: widget.borderRadius,
+        child: Container(
+          color: Colors.grey[200],
+          child: Center(child: Icon(Icons.inventory_2, color: Colors.grey[400])),
+        ),
+      );
+    }
+
+    if (fotos.length == 1) {
+      return GestureDetector(
+        onTap: () => showPhotoLightbox(context, fotos, 0),
+        child: ClipRRect(
+          borderRadius: widget.borderRadius,
+          child: ZapatoImage(imageUrl: fotos[0], height: double.infinity, width: double.infinity, borderRadius: 0),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: widget.borderRadius,
+      child: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            itemCount: fotos.length,
+            onPageChanged: (i) => setState(() => _currentIndex = i),
+            itemBuilder: (_, i) => GestureDetector(
+              onTap: () => showPhotoLightbox(context, fotos, _currentIndex),
+              child: ZapatoImage(imageUrl: fotos[i], height: double.infinity, width: double.infinity, borderRadius: 0),
+            ),
+          ),
+          Positioned(
+            bottom: 4,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(fotos.length, (i) => AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                width: _currentIndex == i ? 12 : 5,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: _currentIndex == i ? Colors.white : Colors.white54,
+                  borderRadius: BorderRadius.circular(3),
+                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 2)],
+                ),
+              )),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 String _tallaDialogLabel(double t) =>
     t % 1 == 0 ? t.toInt().toString() : t.toString();
 
@@ -826,7 +905,7 @@ class _AddToCartDialog extends StatefulWidget {
   final void Function({
     required String? colorId,
     required String? colorNombre,
-    required double? talla,
+    required List<({double talla, int cantidad})> tallasCantidad,
   }) onAdd;
 
   const _AddToCartDialog({
@@ -841,7 +920,7 @@ class _AddToCartDialog extends StatefulWidget {
 
 class _AddToCartDialogState extends State<_AddToCartDialog> {
   String? _selectedColorId;
-  double? _selectedTalla;
+  final Map<double, int> _selectedTallas = {};
   List<InventarioItemModel> _inventario = [];
   bool _loadingInv = true;
 
@@ -863,7 +942,6 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
     if (widget.zapato.colores.isNotEmpty) {
       _selectedColorId = widget.zapato.colores.first.colorId;
     }
-    if (_tallas.isNotEmpty) _selectedTalla = _tallas.first;
     _loadInventario();
   }
 
@@ -887,12 +965,27 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
     }
   }
 
+  int get _totalItems => _selectedTallas.values.fold(0, (s, q) => s + q);
+
+  double _priceForTalla(double t) {
+    switch (widget.tipoPrecio) {
+      case TipoPrecio.publico: return widget.zapato.getPrecioPublicoForTalla(t);
+      case TipoPrecio.mayorista: return widget.zapato.getPrecioCompraForTalla(t) * 1.3;
+      case TipoPrecio.inversionista: return widget.zapato.getPrecioCompraForTalla(t) * 1.2;
+    }
+  }
+
+  double get _totalPrice {
+    double total = 0;
+    _selectedTallas.forEach((talla, qty) => total += _priceForTalla(talla) * qty);
+    return total;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colores = widget.zapato.colores;
     final tallas = _tallas;
-    final stockActual = _stock(_selectedColorId, _selectedTalla);
     final colorNombre = colores.isEmpty
         ? null
         : colores.firstWhere((c) => c.colorId == _selectedColorId,
@@ -900,19 +993,6 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
             .color
             .nombre;
     final horma = widget.zapato.horma;
-    final t = _selectedTalla ?? widget.zapato.medidaInicio.toDouble();
-    double currentPrice;
-    switch (widget.tipoPrecio) {
-      case TipoPrecio.publico:
-        currentPrice = widget.zapato.getPrecioPublicoForTalla(t);
-        break;
-      case TipoPrecio.mayorista:
-        currentPrice = widget.zapato.getPrecioCompraForTalla(t) * 1.3;
-        break;
-      case TipoPrecio.inversionista:
-        currentPrice = widget.zapato.getPrecioCompraForTalla(t) * 1.2;
-        break;
-    }
 
     return AlertDialog(
       title: Row(
@@ -955,7 +1035,10 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
                 children: colores.map((zc) {
                   final selected = _selectedColorId == zc.colorId;
                   return GestureDetector(
-                    onTap: () => setState(() => _selectedColorId = zc.colorId),
+                    onTap: () => setState(() {
+                      _selectedColorId = zc.colorId;
+                      _selectedTallas.clear();
+                    }),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -981,116 +1064,153 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
               ),
               const SizedBox(height: 16),
             ],
-            // Talla selection
+            // Talla selection (multi-select: toca para añadir cantidad, badge muestra el total)
             if (tallas.isNotEmpty) ...[
-              Text('Talla', style: theme.textTheme.labelLarge),
+              Text('Tallas  •  toca para seleccionar', style: theme.textTheme.labelLarge),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 6,
-                runSpacing: 6,
+                runSpacing: 10,
                 children: tallas.map((t) {
-                  final selected = _selectedTalla == t;
+                  final count = _selectedTallas[t] ?? 0;
                   final stock = _loadingInv ? -1 : _stock(_selectedColorId, t);
                   final sinStock = !_loadingInv && stock == 0;
-                  return GestureDetector(
-                    onTap: sinStock ? null : () => setState(() => _selectedTalla = t),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      width: 58,
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: selected
-                              ? theme.colorScheme.primary
-                              : sinStock
-                                  ? theme.disabledColor.withOpacity(0.3)
-                                  : theme.dividerColor,
-                          width: selected ? 2 : 1,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                        color: selected
-                            ? theme.colorScheme.primaryContainer
-                            : sinStock
-                                ? theme.disabledColor.withOpacity(0.05)
-                                : null,
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            'MX ${_tallaDialogLabel(t)}',
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: sinStock ? theme.disabledColor : theme.colorScheme.primary,
+                  final selected = count > 0;
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      GestureDetector(
+                        onTap: sinStock ? null : () {
+                          setState(() {
+                            final current = _selectedTallas[t] ?? 0;
+                            final maxCount = (!_loadingInv && stock > 0) ? stock : 10;
+                            if (current < maxCount) {
+                              _selectedTallas[t] = current + 1;
+                            } else {
+                              _selectedTallas.remove(t);
+                            }
+                          });
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          width: 58,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: selected
+                                  ? theme.colorScheme.primary
+                                  : sinStock
+                                      ? theme.disabledColor.withOpacity(0.3)
+                                      : theme.dividerColor,
+                              width: selected ? 2 : 1,
                             ),
+                            borderRadius: BorderRadius.circular(8),
+                            color: selected
+                                ? theme.colorScheme.primaryContainer
+                                : sinStock
+                                    ? theme.disabledColor.withOpacity(0.05)
+                                    : null,
                           ),
-                          Text(
-                            'EU ${_tallaDialogLabel(mxToEu(t))}',
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: sinStock ? theme.disabledColor : theme.hintColor,
-                            ),
-                          ),
-                          Text(
-                            'US ${_tallaDialogLabel(mxToUs(t))}',
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: sinStock ? theme.disabledColor : theme.hintColor,
-                            ),
-                          ),
-                          if (!_loadingInv)
-                            Container(
-                              margin: const EdgeInsets.only(top: 2),
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: stock > 0
-                                    ? Colors.green.shade100
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(4),
+                          child: Column(
+                            children: [
+                              Text(
+                                'MX ${_tallaDialogLabel(t)}',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: sinStock ? theme.disabledColor : theme.colorScheme.primary,
+                                ),
                               ),
-                              child: Text(
-                                stock > 0 ? '$stock' : '–',
+                              Text(
+                                'EU ${_tallaDialogLabel(mxToEu(t))}',
                                 textAlign: TextAlign.center,
                                 style: theme.textTheme.labelSmall?.copyWith(
-                                  color: stock > 0
-                                      ? Colors.green.shade800
-                                      : theme.disabledColor,
-                                  fontWeight: FontWeight.bold,
+                                  color: sinStock ? theme.disabledColor : theme.hintColor,
+                                ),
+                              ),
+                              Text(
+                                'US ${_tallaDialogLabel(mxToUs(t))}',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: sinStock ? theme.disabledColor : theme.hintColor,
+                                ),
+                              ),
+                              if (!_loadingInv)
+                                Container(
+                                  margin: const EdgeInsets.only(top: 2),
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: stock > 0 ? Colors.green.shade100 : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    stock > 0 ? '$stock' : '–',
+                                    textAlign: TextAlign.center,
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: stock > 0 ? Colors.green.shade800 : theme.disabledColor,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Badge con la cantidad seleccionada; tócalo para quitar la talla
+                      if (count > 0)
+                        Positioned(
+                          top: -7,
+                          right: -7,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _selectedTallas.remove(t)),
+                            child: Container(
+                              width: 20,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: theme.colorScheme.surface, width: 1.5),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '$count',
+                                  style: TextStyle(
+                                    color: theme.colorScheme.onPrimary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),
-                        ],
-                      ),
-                    ),
+                          ),
+                        ),
+                    ],
                   );
                 }).toList(),
               ),
               const SizedBox(height: 12),
             ],
-            // Stock info
-            if (!_loadingInv && _selectedColorId != null && _selectedTalla != null)
+            // Resumen de selección
+            if (_selectedTallas.isNotEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: stockActual > 0
-                      ? Colors.green.shade50
-                      : Colors.orange.shade50,
+                  color: theme.colorScheme.primaryContainer.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      stockActual > 0 ? Icons.check_circle_outline : Icons.warning_amber_outlined,
-                      size: 16,
-                      color: stockActual > 0 ? Colors.green.shade700 : Colors.orange.shade700,
-                    ),
+                    Icon(Icons.check_circle_outline, size: 16, color: theme.colorScheme.primary),
                     const SizedBox(width: 8),
-                    Text(
-                      stockActual > 0
-                          ? 'Stock disponible: $stockActual pares'
-                          : 'Sin stock registrado',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: stockActual > 0 ? Colors.green.shade800 : Colors.orange.shade800,
+                    Expanded(
+                      child: Text(
+                        _selectedTallas.entries
+                            .map((e) => 'T${_tallaDialogLabel(e.key)}${e.value > 1 ? ' ×${e.value}' : ''}')
+                            .join(', '),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],
@@ -1102,11 +1222,15 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
       actions: [
         Row(
           children: [
-            Text('\$${formatPrice(currentPrice)}',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: Colors.green.shade700,
-                  fontWeight: FontWeight.bold,
-                )),
+            Text(
+              _totalItems > 0
+                  ? '\$${formatPrice(_totalPrice)} · $_totalItems ${_totalItems == 1 ? 'par' : 'pares'}'
+                  : 'Sin selección',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: _totalItems > 0 ? Colors.green.shade700 : theme.hintColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const Spacer(),
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -1114,14 +1238,18 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
             ),
             const SizedBox(width: 8),
             FilledButton(
-              onPressed: () {
-                Navigator.pop(context);
-                widget.onAdd(
-                  colorId: _selectedColorId,
-                  colorNombre: colorNombre,
-                  talla: _selectedTalla,
-                );
-              },
+              onPressed: _totalItems == 0
+                  ? null
+                  : () {
+                      Navigator.pop(context);
+                      widget.onAdd(
+                        colorId: _selectedColorId,
+                        colorNombre: colorNombre,
+                        tallasCantidad: _selectedTallas.entries
+                            .map((e) => (talla: e.key, cantidad: e.value))
+                            .toList(),
+                      );
+                    },
               child: const Text('Agregar'),
             ),
           ],

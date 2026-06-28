@@ -8,6 +8,7 @@ class ZapatoImage extends StatelessWidget {
   final double height;
   final double width;
   final double borderRadius;
+  final BoxFit fit;
 
   const ZapatoImage({
     super.key,
@@ -15,6 +16,7 @@ class ZapatoImage extends StatelessWidget {
     this.height = 200,
     this.width = double.infinity,
     this.borderRadius = 12,
+    this.fit = BoxFit.cover,
   });
 
   String _resolveImageUrl(String url) {
@@ -43,7 +45,7 @@ class ZapatoImage extends StatelessWidget {
               imageUrl: fullUrl,
               height: height,
               width: width,
-              fit: BoxFit.cover,
+              fit: fit,
               placeholder: (_, __) => _shimmer(),
               errorWidget: (_, __, ___) =>
                   _placeholder(context, icon: Icons.broken_image, label: 'Error'),
@@ -52,7 +54,7 @@ class ZapatoImage extends StatelessWidget {
               imageUrl: fullUrl,
               height: height,
               width: width,
-              fit: BoxFit.cover,
+              fit: fit,
               // En móvil guarda en disco; la próxima vez carga instantáneo
               placeholder: (_, __) => _shimmer(),
               errorWidget: (_, __, ___) =>

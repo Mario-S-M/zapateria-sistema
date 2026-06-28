@@ -250,13 +250,16 @@ class _PhotoLightboxState extends State<_PhotoLightbox> {
             itemCount: widget.images.length,
             onPageChanged: (i) => setState(() => _currentIndex = i),
             itemBuilder: (_, i) => InteractiveViewer(
-              minScale: 0.8,
+              minScale: 1.0,
               maxScale: 4.0,
+              clipBehavior: Clip.none,
               child: Center(
                 child: ZapatoImage(
                   imageUrl: widget.images[i],
                   height: MediaQuery.of(context).size.height,
                   width: MediaQuery.of(context).size.width,
+                  borderRadius: 0,
+                  fit: BoxFit.contain,
                 ),
               ),
             ),

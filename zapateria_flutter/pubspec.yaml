@@ -23,6 +23,8 @@ dependencies:
   shared_preferences: ^2.2.2
   cached_network_image: ^3.4.1
   permission_handler: ^11.3.1
+  bluetooth_print: ^4.3.0
+  barcode_widget: ^2.0.0
 
 dev_dependencies:
   flutter_test:
