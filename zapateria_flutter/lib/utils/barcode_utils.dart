@@ -8,7 +8,7 @@ String generateBarcode() {
 }
 
 bool validateBarcode(String barcode) {
-  return RegExp(r'^\d{12,13}$').hasMatch(barcode);
+  return barcode.trim().isNotEmpty;
 }
 
 String formatBarcode(String barcode) {

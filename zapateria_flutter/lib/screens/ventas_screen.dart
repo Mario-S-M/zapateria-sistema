@@ -2,9 +2,11 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:zapateria_flutter/components/zapato_image.dart';
 import 'package:zapateria_flutter/models/models.dart';
+import 'package:zapateria_flutter/models/ticket_data.dart';
+import 'package:zapateria_flutter/screens/ticket_screen.dart';
+import 'package:zapateria_flutter/screens/venta_edit_screen.dart';
 import 'package:zapateria_flutter/services/venta_service.dart';
 import 'package:zapateria_flutter/utils/price_utils.dart';
-import 'package:zapateria_flutter/screens/venta_edit_screen.dart';
 
 // ── Payment method helpers ────────────────────────────────────────────────────
 
@@ -67,6 +69,13 @@ class _VentasScreenState extends State<VentasScreen> {
     ).then((_) => _loadVentas());
   }
 
+  void _printVenta(BuildContext context, VentaModel venta) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => TicketScreen(ticket: _ticketFromVenta(venta))),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -108,6 +117,7 @@ class _VentasScreenState extends State<VentasScreen> {
             venta: venta,
             isWeb: true,
             onEdit: () => _editVenta(context, venta),
+            onPrint: () => _printVenta(context, venta),
           );
         },
       ),
@@ -126,6 +136,7 @@ class _VentasScreenState extends State<VentasScreen> {
             venta: venta,
             isWeb: false,
             onEdit: () => _editVenta(context, venta),
+            onPrint: () => _printVenta(context, venta),
           );
         },
       ),
@@ -139,11 +150,13 @@ class _VentaAccordion extends StatelessWidget {
   final VentaModel venta;
   final bool isWeb;
   final VoidCallback onEdit;
+  final VoidCallback onPrint;
 
   const _VentaAccordion({
     required this.venta,
     required this.isWeb,
     required this.onEdit,
+    required this.onPrint,
   });
 
   @override
@@ -193,6 +206,13 @@ class _VentaAccordion extends StatelessWidget {
                 ),
               ),
             const SizedBox(width: 4),
+            IconButton(
+              icon: const Icon(Icons.print_outlined, size: 18),
+              onPressed: onPrint,
+              tooltip: 'Reimprimir ticket',
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+            ),
             IconButton(
               icon: const Icon(Icons.edit_outlined, size: 18),
               onPressed: onEdit,
@@ -574,4 +594,22 @@ extension on VentaModel {
       case TipoPrecio.inversionista: return 'INVERSIONISTA';
     }
   }
+}
+
+TicketData _ticketFromVenta(VentaModel venta) {
+  return TicketData(
+    folio: venta.folio,
+    fecha: DateTime.parse(venta.fecha).toLocal(),
+    items: venta.items.map((item) => TicketItem(
+      nombre: item.zapato?.nombre ?? 'Artículo',
+      modelo: item.zapato?.modelo ?? '',
+      cantidad: item.cantidad,
+      precioUnitario: item.precioUnitario,
+    )).toList(),
+    total: venta.total,
+    metodoPago: _metodoPagoLabel(venta.metodoPago),
+    montoTarjeta: venta.montoTarjeta > 0 ? venta.montoTarjeta : null,
+    tipoPrecio: venta.tipoPrecioString,
+    inversionistaNombre: venta.inversionista?.nombre,
+  );
 }

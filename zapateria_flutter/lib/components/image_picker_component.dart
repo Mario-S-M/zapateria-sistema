@@ -224,17 +224,29 @@ class _PhotoLightbox extends StatefulWidget {
 
 class _PhotoLightboxState extends State<_PhotoLightbox> {
   late PageController _pageController;
+  late TransformationController _transformController;
   late int _currentIndex;
+  bool _isZoomed = false;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
+    _transformController = TransformationController();
+    _transformController.addListener(_onTransformChanged);
+  }
+
+  void _onTransformChanged() {
+    final scale = _transformController.value.getMaxScaleOnAxis();
+    final zoomed = scale > 1.01;
+    if (zoomed != _isZoomed) setState(() => _isZoomed = zoomed);
   }
 
   @override
   void dispose() {
+    _transformController.removeListener(_onTransformChanged);
+    _transformController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -247,18 +259,23 @@ class _PhotoLightboxState extends State<_PhotoLightbox> {
         children: [
           PageView.builder(
             controller: _pageController,
+            physics: _isZoomed ? const NeverScrollableScrollPhysics() : const PageScrollPhysics(),
             itemCount: widget.images.length,
-            onPageChanged: (i) => setState(() => _currentIndex = i),
+            onPageChanged: (i) {
+              setState(() => _currentIndex = i);
+              _transformController.value = Matrix4.identity();
+            },
             itemBuilder: (_, i) => InteractiveViewer(
+              transformationController: i == _currentIndex ? _transformController : TransformationController(),
               minScale: 1.0,
               maxScale: 4.0,
               clipBehavior: Clip.none,
               child: Center(
                 child: ZapatoImage(
                   imageUrl: widget.images[i],
-                  height: MediaQuery.of(context).size.height,
-                  width: MediaQuery.of(context).size.width,
-                  borderRadius: 0,
+                  height: MediaQuery.of(context).size.height * 0.65,
+                  width: MediaQuery.of(context).size.width * 0.85,
+                  borderRadius: 8,
                   fit: BoxFit.contain,
                 ),
               ),

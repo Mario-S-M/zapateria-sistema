@@ -339,11 +339,7 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
         TextFormField(
           controller: _codigoBarrasController,
           decoration: const InputDecoration(labelText: 'Código de barras *', border: OutlineInputBorder()),
-          validator: (v) {
-            if (v == null || v.trim().isEmpty) return 'Requerido';
-            if (!validateBarcode(v.trim())) return 'Debe tener 12 o 13 dígitos';
-            return null;
-          },
+          validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido' : null,
         ),
         const SizedBox(height: 4),
         TextButton.icon(
@@ -482,11 +478,7 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
           TextFormField(
             controller: _codigoBarrasController,
             decoration: const InputDecoration(labelText: 'Código de barras *'),
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Requerido';
-              if (!validateBarcode(v.trim())) return 'Debe tener 12 o 13 dígitos';
-              return null;
-            },
+            validator: (v) => (v == null || v.trim().isEmpty) ? 'Requerido' : null,
           ),
           const SizedBox(height: 4),
           TextButton.icon(

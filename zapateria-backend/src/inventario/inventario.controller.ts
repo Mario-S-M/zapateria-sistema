@@ -6,6 +6,11 @@ import { BulkUpsertInventarioDto } from '../dto/inventario.dto';
 export class InventarioController {
   constructor(private readonly inventarioService: InventarioService) {}
 
+  @Get()
+  findAll() {
+    return this.inventarioService.findAll();
+  }
+
   @Get('zapato/:zapatoId')
   getByZapato(@Param('zapatoId') zapatoId: string) {
     return this.inventarioService.getByZapato(zapatoId);

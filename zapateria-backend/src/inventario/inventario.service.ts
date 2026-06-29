@@ -11,6 +11,10 @@ export class InventarioService {
     private readonly repo: Repository<Inventario>,
   ) {}
 
+  async findAll(): Promise<Inventario[]> {
+    return this.repo.find();
+  }
+
   async getByZapato(zapatoId: string): Promise<Inventario[]> {
     return this.repo.find({
       where: { zapatoId },

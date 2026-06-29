@@ -12,6 +12,8 @@ import 'package:zapateria_flutter/services/inventario_service.dart';
 import 'package:zapateria_flutter/utils/talla_converter.dart';
 import 'package:zapateria_flutter/components/zapato_image.dart';
 import 'package:zapateria_flutter/components/color_circle.dart';
+import 'package:zapateria_flutter/services/categoria_service.dart';
+import 'package:zapateria_flutter/services/inversionista_service.dart';
 
 class ZapatosScreen extends StatefulWidget {
   const ZapatosScreen({super.key});
@@ -20,7 +22,7 @@ class ZapatosScreen extends StatefulWidget {
   State<ZapatosScreen> createState() => _ZapatosScreenState();
 }
 
-class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProviderStateMixin {
+class _ZapatosScreenState extends State<ZapatosScreen> {
   List<ZapatoModel> _zapatos = [];
   List<ZapatoModel> _filtered = [];
   bool _loading = true;
@@ -28,21 +30,27 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
   String _searchQuery = '';
   int _page = 0;
   static const int _perPage = 12;
-  late TabController _tabController;
   final ScrollController _scrollController = ScrollController();
+
+  // Filter state
+  String? _filterCategoriaId;
+  String? _filterInversionistaId;
+  double? _filterPrecioMin;
+  double? _filterPrecioMax;
+  final Set<int> _filterTallas = {};
+  bool? _filterConExistencias;
+
+  List<CategoriaModel> _categorias = [];
+  List<InversionistaModel> _inversionistas = [];
+  Map<String, int> _stockPorZapato = {};
+  bool _stockLoaded = false;
+  bool _loadingStock = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(_onTabChanged);
     _loadZapatos();
-  }
-
-  void _onTabChanged() {
-    if (_tabController.indexIsChanging) return;
-    const tipos = [TipoPrecio.publico, TipoPrecio.mayorista, TipoPrecio.inversionista];
-    context.read<CartProvider>().setTipoPrecio(tipos[_tabController.index]);
+    _loadCatalogs();
   }
 
   Future<void> _loadZapatos() async {
@@ -61,9 +69,26 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
   void _applyFilter() {
     _filtered = _zapatos.where((z) {
       final q = _searchQuery.toLowerCase();
-      return z.nombre.toLowerCase().contains(q) ||
-             z.modelo.toLowerCase().contains(q) ||
-             z.codigoBarras.contains(_searchQuery);
+      if (q.isNotEmpty &&
+          !z.nombre.toLowerCase().contains(q) &&
+          !z.modelo.toLowerCase().contains(q) &&
+          !z.codigoBarras.contains(_searchQuery)) return false;
+      if (_filterCategoriaId != null && z.categoriaId != _filterCategoriaId) return false;
+      if (_filterInversionistaId != null) {
+        if (_filterInversionistaId == 'NONE') {
+          if (z.inversionistaId != null) return false;
+        } else if (z.inversionistaId != _filterInversionistaId) return false;
+      }
+      if (_filterPrecioMin != null && z.precioPublico < _filterPrecioMin!) return false;
+      if (_filterPrecioMax != null && z.precioPublico > _filterPrecioMax!) return false;
+      if (_filterTallas.isNotEmpty &&
+          !_filterTallas.any((t) => t >= z.medidaInicio && t <= z.medidaFin)) return false;
+      if (_filterConExistencias != null && _stockLoaded) {
+        final stock = _stockPorZapato[z.id] ?? 0;
+        if (_filterConExistencias! && stock <= 0) return false;
+        if (!_filterConExistencias! && stock > 0) return false;
+      }
+      return true;
     }).toList();
     _page = 0;
   }
@@ -78,8 +103,6 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
 
   @override
   void dispose() {
-    _tabController.removeListener(_onTabChanged);
-    _tabController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -87,6 +110,177 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
   Future<void> _handleRefresh() async {
     await _loadZapatos();
     if (mounted) setState(() {});
+  }
+
+  Future<void> _loadCatalogs() async {
+    try {
+      final results = await Future.wait([categoriaService.getAll(), inversionistaService.getAll()]);
+      if (mounted) setState(() {
+        _categorias = results[0] as List<CategoriaModel>;
+        _inversionistas = results[1] as List<InversionistaModel>;
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _loadStock() async {
+    if (_stockLoaded || _loadingStock) return;
+    setState(() => _loadingStock = true);
+    try {
+      final items = await inventarioService.getAll();
+      final map = <String, int>{};
+      for (final item in items) {
+        map[item.zapatoId] = (map[item.zapatoId] ?? 0) + item.cantidad;
+      }
+      if (mounted) {
+        _stockPorZapato = map;
+        _stockLoaded = true;
+        _applyFilter();
+        setState(() {});
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _loadingStock = false);
+    }
+  }
+
+  bool get _hasActiveFilters =>
+      _filterCategoriaId != null ||
+      _filterInversionistaId != null ||
+      _filterPrecioMin != null ||
+      _filterPrecioMax != null ||
+      _filterTallas.isNotEmpty ||
+      _filterConExistencias != null;
+
+  void _clearAllFilters() {
+    _filterCategoriaId = null;
+    _filterInversionistaId = null;
+    _filterPrecioMin = null;
+    _filterPrecioMax = null;
+    _filterTallas.clear();
+    _filterConExistencias = null;
+    _applyFilter();
+    setState(() {});
+  }
+
+  double get _minPrecioGlobal => _zapatos.isEmpty
+      ? 0
+      : _zapatos.map((z) => z.precioPublico).reduce((a, b) => a < b ? a : b);
+  double get _maxPrecioGlobal => _zapatos.isEmpty
+      ? 10000
+      : _zapatos.map((z) => z.precioPublico).reduce((a, b) => a > b ? a : b);
+
+  Set<int> get _allTallas {
+    final s = <int>{};
+    for (final z in _zapatos) {
+      for (int t = z.medidaInicio; t <= z.medidaFin; t++) s.add(t);
+    }
+    return s;
+  }
+
+  void _showFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _FilterSheet(
+        categorias: _categorias,
+        inversionistas: _inversionistas,
+        allTallas: _allTallas.toList()..sort(),
+        minPrecioGlobal: _minPrecioGlobal,
+        maxPrecioGlobal: _maxPrecioGlobal,
+        categoriaId: _filterCategoriaId,
+        inversionistaId: _filterInversionistaId,
+        precioMin: _filterPrecioMin,
+        precioMax: _filterPrecioMax,
+        filterTallas: Set.from(_filterTallas),
+        conExistencias: _filterConExistencias,
+        onApply: ({
+          String? categoriaId,
+          String? inversionistaId,
+          double? precioMin,
+          double? precioMax,
+          required Set<int> tallas,
+          bool? conExistencias,
+        }) {
+          _filterCategoriaId = categoriaId;
+          _filterInversionistaId = inversionistaId;
+          _filterPrecioMin = precioMin;
+          _filterPrecioMax = precioMax;
+          _filterTallas..clear()..addAll(tallas);
+          _filterConExistencias = conExistencias;
+          if (conExistencias != null) _loadStock();
+          _applyFilter();
+          setState(() {});
+        },
+      ),
+    );
+  }
+
+  Widget _buildActiveFilterChips() {
+    final chips = <Widget>[];
+
+    if (_filterCategoriaId != null) {
+      final matches = _categorias.where((c) => c.id == _filterCategoriaId);
+      final nombre = matches.isEmpty ? '?' : matches.first.nombre;
+      chips.add(_FilterChipBadge(
+        label: 'Cat: $nombre',
+        onRemove: () { _filterCategoriaId = null; _applyFilter(); setState(() {}); },
+      ));
+    }
+    if (_filterInversionistaId != null) {
+      String label;
+      if (_filterInversionistaId == 'NONE') {
+        label = 'Sin inversionista';
+      } else {
+        final matches = _inversionistas.where((i) => i.id == _filterInversionistaId);
+        label = matches.isEmpty ? '?' : matches.first.nombre;
+      }
+      chips.add(_FilterChipBadge(
+        label: 'Inv: $label',
+        onRemove: () { _filterInversionistaId = null; _applyFilter(); setState(() {}); },
+      ));
+    }
+    if (_filterPrecioMin != null || _filterPrecioMax != null) {
+      final minLabel = _filterPrecioMin?.toStringAsFixed(0) ?? '0';
+      final maxLabel = _filterPrecioMax?.toStringAsFixed(0) ?? '∞';
+      chips.add(_FilterChipBadge(
+        label: '\$$minLabel–\$$maxLabel',
+        onRemove: () { _filterPrecioMin = null; _filterPrecioMax = null; _applyFilter(); setState(() {}); },
+      ));
+    }
+    if (_filterTallas.isNotEmpty) {
+      final sorted = _filterTallas.toList()..sort();
+      chips.add(_FilterChipBadge(
+        label: 'T: ${sorted.join(', ')}',
+        onRemove: () { _filterTallas.clear(); _applyFilter(); setState(() {}); },
+      ));
+    }
+    if (_filterConExistencias != null) {
+      chips.add(_FilterChipBadge(
+        label: _filterConExistencias! ? 'Con stock' : 'Sin stock',
+        onRemove: () { _filterConExistencias = null; _applyFilter(); setState(() {}); },
+      ));
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 6, 8, 0),
+      child: Row(
+        children: [
+          Expanded(child: Wrap(spacing: 6, runSpacing: 4, children: chips)),
+          TextButton(
+            onPressed: _clearAllFilters,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              minimumSize: Size.zero,
+            ),
+            child: const Text('Limpiar', style: TextStyle(fontSize: 12)),
+          ),
+        ],
+      ),
+    );
   }
 
   double _getPrecioForTalla(ZapatoModel zapato, TipoPrecio tipoPrecio, double? talla) {
@@ -238,15 +432,31 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
     return Scaffold(
       appBar: AppBar(
         title: const Text('Zapatos'),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: theme.colorScheme.primary,
-          tabs: const [
-            Tab(text: 'Público'),
-            Tab(text: 'Mayorista'),
-            Tab(text: 'Inversionista'),
-          ],
-        ),
+        actions: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.filter_list),
+                tooltip: 'Filtros',
+                onPressed: _showFilterSheet,
+              ),
+              if (_hasActiveFilters)
+                Positioned(
+                  right: 10,
+                  top: 10,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.orange,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -266,6 +476,8 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
               },
             ),
           ),
+          if (_hasActiveFilters)
+            _buildActiveFilterChips(),
           if (!_loading && _error == null)
             _buildTotalBar(theme),
           Expanded(
@@ -293,7 +505,7 @@ class _ZapatosScreenState extends State<ZapatosScreen> with SingleTickerProvider
   }
 
   Widget _buildTotalBar(ThemeData theme) {
-    final isFiltered = _searchQuery.isNotEmpty;
+    final isFiltered = _searchQuery.isNotEmpty || _hasActiveFilters;
     final label = isFiltered
         ? '${_filtered.length} resultado${_filtered.length == 1 ? '' : 's'} de ${_zapatos.length} artículos'
         : '${_zapatos.length} artículo${_zapatos.length == 1 ? '' : 's'} en total';
@@ -1025,6 +1237,17 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Precio resumen arriba
+            Text(
+              _totalItems > 0
+                  ? '\$${formatPrice(_totalPrice)} · $_totalItems ${_totalItems == 1 ? 'par' : 'pares'}'
+                  : 'Sin selección',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: _totalItems > 0 ? Colors.green.shade700 : theme.hintColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
             // Color selection
             if (colores.isNotEmpty) ...[
               Text('Color', style: theme.textTheme.labelLarge),
@@ -1070,7 +1293,7 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
               const SizedBox(height: 8),
               Wrap(
                 spacing: 6,
-                runSpacing: 10,
+                runSpacing: 18,
                 children: tallas.map((t) {
                   final count = _selectedTallas[t] ?? 0;
                   final stock = _loadingInv ? -1 : _stock(_selectedColorId, t);
@@ -1159,8 +1382,8 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
                       // Badge con la cantidad seleccionada; tócalo para quitar la talla
                       if (count > 0)
                         Positioned(
-                          top: -7,
-                          right: -7,
+                          top: -8,
+                          left: -8,
                           child: GestureDetector(
                             onTap: () => setState(() => _selectedTallas.remove(t)),
                             child: Container(
@@ -1220,41 +1443,384 @@ class _AddToCartDialogState extends State<_AddToCartDialog> {
         ),
       ),
       actions: [
-        Row(
-          children: [
-            Text(
-              _totalItems > 0
-                  ? '\$${formatPrice(_totalPrice)} · $_totalItems ${_totalItems == 1 ? 'par' : 'pares'}'
-                  : 'Sin selección',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: _totalItems > 0 ? Colors.green.shade700 : theme.hintColor,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const Spacer(),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            const SizedBox(width: 8),
-            FilledButton(
-              onPressed: _totalItems == 0
-                  ? null
-                  : () {
-                      Navigator.pop(context);
-                      widget.onAdd(
-                        colorId: _selectedColorId,
-                        colorNombre: colorNombre,
-                        tallasCantidad: _selectedTallas.entries
-                            .map((e) => (talla: e.key, cantidad: e.value))
-                            .toList(),
-                      );
-                    },
-              child: const Text('Agregar'),
-            ),
-          ],
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _totalItems == 0
+              ? null
+              : () {
+                  Navigator.pop(context);
+                  widget.onAdd(
+                    colorId: _selectedColorId,
+                    colorNombre: colorNombre,
+                    tallasCantidad: _selectedTallas.entries
+                        .map((e) => (talla: e.key, cantidad: e.value))
+                        .toList(),
+                  );
+                },
+          child: const Text('Agregar'),
         ),
       ],
+    );
+  }
+}
+
+// ── Filter chip badge ─────────────────────────────────────────────────────────
+
+class _FilterChipBadge extends StatelessWidget {
+  final String label;
+  final VoidCallback onRemove;
+  const _FilterChipBadge({required this.label, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      deleteIcon: const Icon(Icons.close, size: 14),
+      onDeleted: onRemove,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+}
+
+// ── Filter bottom sheet ───────────────────────────────────────────────────────
+
+class _FilterSheet extends StatefulWidget {
+  final List<CategoriaModel> categorias;
+  final List<InversionistaModel> inversionistas;
+  final List<int> allTallas;
+  final double minPrecioGlobal;
+  final double maxPrecioGlobal;
+  final String? categoriaId;
+  final String? inversionistaId;
+  final double? precioMin;
+  final double? precioMax;
+  final Set<int> filterTallas;
+  final bool? conExistencias;
+  final void Function({
+    String? categoriaId,
+    String? inversionistaId,
+    double? precioMin,
+    double? precioMax,
+    required Set<int> tallas,
+    bool? conExistencias,
+  }) onApply;
+
+  const _FilterSheet({
+    required this.categorias,
+    required this.inversionistas,
+    required this.allTallas,
+    required this.minPrecioGlobal,
+    required this.maxPrecioGlobal,
+    required this.categoriaId,
+    required this.inversionistaId,
+    required this.precioMin,
+    required this.precioMax,
+    required this.filterTallas,
+    required this.conExistencias,
+    required this.onApply,
+  });
+
+  @override
+  State<_FilterSheet> createState() => _FilterSheetState();
+}
+
+class _FilterSheetState extends State<_FilterSheet> {
+  String? _categoriaId;
+  String? _inversionistaId;
+  bool _usePrecioFilter = false;
+  late RangeValues _precioRange;
+  late Set<int> _tallas;
+  bool? _conExistencias;
+
+  @override
+  void initState() {
+    super.initState();
+    _categoriaId = widget.categoriaId;
+    _inversionistaId = widget.inversionistaId;
+    _usePrecioFilter = widget.precioMin != null || widget.precioMax != null;
+    _precioRange = RangeValues(
+      widget.precioMin ?? widget.minPrecioGlobal,
+      widget.precioMax ?? widget.maxPrecioGlobal,
+    );
+    _tallas = Set.from(widget.filterTallas);
+    _conExistencias = widget.conExistencias;
+  }
+
+  void _clearAll() {
+    setState(() {
+      _categoriaId = null;
+      _inversionistaId = null;
+      _usePrecioFilter = false;
+      _precioRange = RangeValues(widget.minPrecioGlobal, widget.maxPrecioGlobal);
+      _tallas.clear();
+      _conExistencias = null;
+    });
+  }
+
+  void _apply() {
+    widget.onApply(
+      categoriaId: _categoriaId,
+      inversionistaId: _inversionistaId,
+      precioMin: _usePrecioFilter ? _precioRange.start : null,
+      precioMax: _usePrecioFilter ? _precioRange.end : null,
+      tallas: _tallas,
+      conExistencias: _conExistencias,
+    );
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final samePrice = widget.minPrecioGlobal >= widget.maxPrecioGlobal;
+    final priceDivisions = samePrice
+        ? 1
+        : ((widget.maxPrecioGlobal - widget.minPrecioGlobal) / 50).round().clamp(1, 100);
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, scrollController) => Column(
+        children: [
+          // Handle bar
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: theme.dividerColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                Text('Filtros',
+                    style: theme.textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.bold)),
+                const Spacer(),
+                TextButton(
+                  onPressed: _clearAll,
+                  child: const Text('Limpiar todo'),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              children: [
+                // ── Categoría ──────────────────────────────────────
+                if (widget.categorias.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  Text('Categoría',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      FilterChip(
+                        label: const Text('Todas'),
+                        selected: _categoriaId == null,
+                        onSelected: (_) => setState(() => _categoriaId = null),
+                      ),
+                      ...widget.categorias.map((c) => FilterChip(
+                            label: Text(c.nombre),
+                            selected: _categoriaId == c.id,
+                            onSelected: (_) => setState(() =>
+                                _categoriaId =
+                                    _categoriaId == c.id ? null : c.id),
+                          )),
+                    ],
+                  ),
+                ],
+
+                // ── Inversionista ────────────────────────────────────
+                if (widget.inversionistas.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  const Divider(height: 1),
+                  const SizedBox(height: 20),
+                  Text('Inversionista',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      FilterChip(
+                        label: const Text('Todos'),
+                        selected: _inversionistaId == null,
+                        onSelected: (_) =>
+                            setState(() => _inversionistaId = null),
+                      ),
+                      FilterChip(
+                        label: const Text('Sin inversionista'),
+                        selected: _inversionistaId == 'NONE',
+                        onSelected: (_) => setState(() => _inversionistaId =
+                            _inversionistaId == 'NONE' ? null : 'NONE'),
+                      ),
+                      ...widget.inversionistas.map((inv) => FilterChip(
+                            label: Text(inv.nombre),
+                            selected: _inversionistaId == inv.id,
+                            onSelected: (_) => setState(() =>
+                                _inversionistaId = _inversionistaId == inv.id
+                                    ? null
+                                    : inv.id),
+                          )),
+                    ],
+                  ),
+                ],
+
+                // ── Precio ────────────────────────────────────────────
+                if (!samePrice) ...[
+                  const SizedBox(height: 20),
+                  const Divider(height: 1),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Text('Precio (público)',
+                          style: theme.textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w600)),
+                      const Spacer(),
+                      Switch(
+                        value: _usePrecioFilter,
+                        onChanged: (v) => setState(() => _usePrecioFilter = v),
+                      ),
+                    ],
+                  ),
+                  if (_usePrecioFilter) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('\$${_precioRange.start.toStringAsFixed(0)}',
+                            style: theme.textTheme.bodySmall),
+                        Text('\$${_precioRange.end.toStringAsFixed(0)}',
+                            style: theme.textTheme.bodySmall),
+                      ],
+                    ),
+                    RangeSlider(
+                      values: _precioRange,
+                      min: widget.minPrecioGlobal,
+                      max: widget.maxPrecioGlobal,
+                      divisions: priceDivisions,
+                      labels: RangeLabels(
+                        '\$${_precioRange.start.toStringAsFixed(0)}',
+                        '\$${_precioRange.end.toStringAsFixed(0)}',
+                      ),
+                      onChanged: (v) => setState(() => _precioRange = v),
+                    ),
+                  ],
+                ],
+
+                // ── Tallas ────────────────────────────────────────────
+                if (widget.allTallas.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  const Divider(height: 1),
+                  const SizedBox(height: 20),
+                  Text('Tallas (MX)',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: widget.allTallas
+                        .map((t) => FilterChip(
+                              label: Text('$t'),
+                              selected: _tallas.contains(t),
+                              onSelected: (_) => setState(() {
+                                if (_tallas.contains(t)) {
+                                  _tallas.remove(t);
+                                } else {
+                                  _tallas.add(t);
+                                }
+                              }),
+                            ))
+                        .toList(),
+                  ),
+                ],
+
+                // ── Existencias ───────────────────────────────────────
+                const SizedBox(height: 20),
+                const Divider(height: 1),
+                const SizedBox(height: 20),
+                Text('Existencias',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    FilterChip(
+                      label: const Text('Todos'),
+                      selected: _conExistencias == null,
+                      onSelected: (_) =>
+                          setState(() => _conExistencias = null),
+                    ),
+                    FilterChip(
+                      label: const Text('Con stock'),
+                      selected: _conExistencias == true,
+                      onSelected: (_) => setState(() => _conExistencias =
+                          _conExistencias == true ? null : true),
+                    ),
+                    FilterChip(
+                      label: const Text('Sin stock'),
+                      selected: _conExistencias == false,
+                      onSelected: (_) => setState(() => _conExistencias =
+                          _conExistencias == false ? null : false),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 80),
+              ],
+            ),
+          ),
+          // ── Botones ────────────────────────────────────────────────
+          Container(
+            padding: EdgeInsets.fromLTRB(
+                16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              border: Border(top: BorderSide(color: theme.dividerColor)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancelar'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: FilledButton(
+                    onPressed: _apply,
+                    child: const Text('Aplicar filtros'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
