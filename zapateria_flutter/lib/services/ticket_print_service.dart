@@ -1,25 +1,42 @@
+import 'dart:async';
 import 'dart:io' show Platform;
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:bluetooth_print/bluetooth_print.dart';
-import 'package:bluetooth_print/bluetooth_print_model.dart';
+import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:zapateria_flutter/config/business_config.dart';
 import 'package:zapateria_flutter/models/ticket_data.dart';
 import 'package:zapateria_flutter/utils/price_utils.dart';
+import 'esc_pos.dart';
+import 'web_print_service.dart' if (dart.library.io) 'web_print_service_stub.dart';
 
 class TicketPrintService {
   TicketPrintService._();
 
-  static final BluetoothPrint _bt = BluetoothPrint.instance;
+  static const _prefAddress = 'lastPrinterAddress';
+  static const _prefName = 'lastPrinterName';
+
+  static Future<void> _savePrinter(BluetoothDevice device) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefAddress, device.address);
+    await prefs.setString(_prefName, device.name ?? '');
+  }
+
+  static Future<({String address, String name})?> _loadSavedPrinter() async {
+    final prefs = await SharedPreferences.getInstance();
+    final address = prefs.getString(_prefAddress);
+    final name = prefs.getString(_prefName);
+    if (address == null || address.isEmpty) return null;
+    return (address: address, name: name ?? address);
+  }
 
   static Future<void> showPrinterPicker(
       BuildContext context, TicketData ticket) async {
     if (kIsWeb) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impresión Bluetooth no disponible en web')),
-      );
+      WebPrintService.printTicketWeb(ticket);
       return;
     }
 
@@ -36,13 +53,59 @@ class TicketPrintService {
 
     if (!context.mounted) return;
 
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (ctx) => _PrinterPickerSheet(ticket: ticket),
-    );
+    final isEnabled = await FlutterBluetoothSerial.instance.isEnabled;
+    if (isEnabled != true) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Activa Bluetooth para imprimir')),
+        );
+      }
+      return;
+    }
+
+    if (!context.mounted) return;
+
+    if (Platform.isAndroid) {
+      final loc = await Permission.locationWhenInUse.status;
+      final locSv = await Permission.location.status;
+      if (!loc.isGranted && !locSv.isGranted) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'Activa Ubicación en ajustes para encontrar impresoras Bluetooth')),
+          );
+        }
+        return;
+      }
+    }
+
+    if (!context.mounted) return;
+
+    final saved = await _loadSavedPrinter();
+    if (!context.mounted) return;
+
+    if (saved != null) {
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+        builder: (ctx) => _QuickPrintSheet(
+          ticket: ticket,
+          printerAddress: saved.address,
+          printerName: saved.name,
+        ),
+      );
+    } else {
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+        builder: (ctx) => _PrinterPickerSheet(ticket: ticket),
+      );
+    }
   }
 
   static Future<bool> _requestPermissions() async {
@@ -55,9 +118,10 @@ class TicketPrintService {
         Permission.bluetoothScan,
         Permission.bluetoothConnect,
         Permission.locationWhenInUse,
+        Permission.location,
       ].request();
       return statuses.values
-          .every((s) => s.isGranted || s.isLimited || s.isPermanentlyDenied == false);
+          .every((s) => s.isGranted || s.isLimited);
     }
 
     if (Platform.isIOS) {
@@ -68,122 +132,126 @@ class TicketPrintService {
     return false;
   }
 
-  static List<LineText> _buildLines(TicketData ticket) {
-    final lines = <LineText>[];
+  static List<int> _buildBytes(TicketData ticket) {
+    final buf = <int>[];
     final dateStr =
         DateFormat('dd/MM/yyyy  HH:mm', 'es_MX').format(ticket.fecha);
     const sep = '================================';
-    const dashedSep = '--------------------------------';
+    const dash = '--------------------------------';
 
-    // weight: 0 = normal, 1 = bold (no named constants in v4.3.0)
-    void addText(String content,
-        {int align = LineText.ALIGN_LEFT, int weight = 0, int feed = 1}) {
-      lines.add(LineText(
-        type: LineText.TYPE_TEXT,
-        content: content,
-        align: align,
-        weight: weight,
-        linefeed: feed,
-      ));
+    void addLine(String s, {int align = EscPos.alignLeft, bool bold = false}) {
+      buf.addAll(EscPos.setAlign(align));
+      buf.addAll(EscPos.setBold(bold));
+      buf.addAll(EscPos.textLine(s));
     }
 
-    // ── Header ─────────────────────────────────────────────
-    addText(sep, align: LineText.ALIGN_CENTER);
-    addText(kBusinessName, align: LineText.ALIGN_CENTER, weight: 1);
-    addText(kBusinessAddr1, align: LineText.ALIGN_CENTER);
-    addText(kBusinessAddr2, align: LineText.ALIGN_CENTER);
-    addText('RFC: $kBusinessRFC', align: LineText.ALIGN_CENTER);
-    addText(sep, align: LineText.ALIGN_CENTER);
+    // Header
+    buf.addAll(EscPos.init80());
+    addLine(sep, align: EscPos.alignCenter);
+    addLine('TICKET DE COMPRA', align: EscPos.alignCenter, bold: true);
+    addLine(sep, align: EscPos.alignCenter);
+    addLine(kBusinessName, align: EscPos.alignCenter, bold: true);
+    addLine(kBusinessAddr1, align: EscPos.alignCenter);
+    addLine(kBusinessAddr2, align: EscPos.alignCenter);
+    addLine('RFC: $kBusinessRFC', align: EscPos.alignCenter);
+    addLine(sep, align: EscPos.alignCenter);
 
-    // ── Folio + Fecha ───────────────────────────────────────
-    addText('TICKET: ${ticket.folio}');
-    addText('Fecha:  $dateStr');
-    addText(dashedSep);
+    // Folio + Fecha
+    addLine('TICKET: ${ticket.folio}', align: EscPos.alignCenter);
+    addLine('Fecha:  $dateStr', align: EscPos.alignCenter);
+    if (ticket.clienteNombre != null && ticket.clienteNombre!.isNotEmpty) {
+      addLine('Cliente: ${ticket.clienteNombre}', align: EscPos.alignCenter);
+    }
+    addLine(dash);
 
-    // ── Items ───────────────────────────────────────────────
+    // Items
     for (final item in ticket.items) {
       final title = item.nombre.toUpperCase();
       final modelo = item.modelo.isNotEmpty ? '  mod. ${item.modelo}' : '';
-      addText('$title$modelo', weight: 1);
+      addLine('$title$modelo', bold: true);
 
       final colorTalla = [
         if (item.color != null) item.color!,
         if (item.talla != null)
           'T.${item.talla! % 1 == 0 ? item.talla!.toInt() : item.talla}',
       ].join('  ');
-      if (colorTalla.isNotEmpty) addText('  $colorTalla');
+      if (colorTalla.isNotEmpty) addLine('  $colorTalla');
 
       final cantPrecio =
           '  ${item.cantidad} x \$${formatPrice(item.precioUnitario)}';
       final sub = '\$${formatPrice(item.subtotal)}';
       final spaces = 32 - cantPrecio.length - sub.length;
-      addText('$cantPrecio${' ' * (spaces > 0 ? spaces : 1)}$sub');
+      addLine('$cantPrecio${' ' * (spaces > 0 ? spaces : 1)}$sub');
     }
 
-    // ── Total ───────────────────────────────────────────────
-    addText(dashedSep);
+    // Total
+    addLine(dash);
     final totalStr = '\$${formatPrice(ticket.total)}';
     const totalLabel = 'TOTAL:';
     final totalSpaces = 32 - totalLabel.length - totalStr.length;
-    addText(
+    addLine(
       '$totalLabel${' ' * (totalSpaces > 0 ? totalSpaces : 1)}$totalStr',
-      weight: 1,
+      bold: true,
     );
 
-    // ── Pago ────────────────────────────────────────────────
-    addText(dashedSep);
-    addText('Pago: ${ticket.metodoPago}');
+    // Pago
+    addLine(dash);
+    addLine('Pago: ${ticket.metodoPago}');
     if (ticket.montoTarjeta != null && ticket.montoTarjeta! > 0) {
-      addText('  Tarjeta:   \$${formatPrice(ticket.montoTarjeta!)}');
+      addLine('  Tarjeta:   \$${formatPrice(ticket.montoTarjeta!)}');
     }
     if (ticket.montoRecibido != null && ticket.montoRecibido! > 0) {
-      addText('  Recibido:  \$${formatPrice(ticket.montoRecibido!)}');
+      addLine('  Recibido:  \$${formatPrice(ticket.montoRecibido!)}');
     }
     if (ticket.cambio != null && ticket.cambio! >= 0) {
-      addText('  Cambio:    \$${formatPrice(ticket.cambio!)}');
+      addLine('  Cambio:    \$${formatPrice(ticket.cambio!)}');
     }
     if (ticket.inversionistaNombre != null) {
-      addText('Cuenta: ${ticket.inversionistaNombre}');
+      addLine('Cuenta: ${ticket.inversionistaNombre}');
     }
 
-    // ── Barcode ─────────────────────────────────────────────
-    addText(sep, align: LineText.ALIGN_CENTER);
-    lines.add(LineText(
-      type: LineText.TYPE_BARCODE,
-      content: ticket.folio,
-      size: 10,
-      align: LineText.ALIGN_CENTER,
-      linefeed: 1,
-    ));
-    addText(ticket.folio, align: LineText.ALIGN_CENTER);
+    // Barcode
+    addLine(sep, align: EscPos.alignCenter);
+    buf.addAll(EscPos.setAlign(EscPos.alignCenter));
+    buf.addAll(EscPos.barcode(ticket.folio));
 
-    // ── Garantía ────────────────────────────────────────────
-    addText(sep, align: LineText.ALIGN_CENTER);
+    // Garantía
+    addLine(sep, align: EscPos.alignCenter);
     for (final line in kTicketPolicy) {
-      addText(line, align: LineText.ALIGN_CENTER);
+      addLine(line, align: EscPos.alignCenter);
     }
-    addText(sep, align: LineText.ALIGN_CENTER);
-    addText('  Gracias por su compra!  ',
-        align: LineText.ALIGN_CENTER, weight: 1);
-    // Feed and cut
-    addText('', feed: 1);
-    addText('', feed: 1);
-    addText('', feed: 1);
+    addLine(sep, align: EscPos.alignCenter);
+    addLine('  Gracias por su compra!  ',
+        align: EscPos.alignCenter, bold: true);
+    addLine(sep, align: EscPos.alignCenter);
+    addLine('* No es comprobante fiscal', align: EscPos.alignCenter);
+    addLine('  ni documento legal.', align: EscPos.alignCenter);
 
-    return lines;
+    // Feed and cut
+    buf.addAll(EscPos.feed(4));
+    buf.addAll(EscPos.cut());
+
+    return buf;
   }
 
-  static Future<void> _print(BluetoothDevice device, TicketData ticket) async {
-    await _bt.connect(device);
-    await Future.delayed(const Duration(milliseconds: 600));
-    await _bt.printReceipt({}, _buildLines(ticket));
-    // Wait for data to be sent to printer before disconnecting
-    await Future.delayed(const Duration(seconds: 2));
-    await _bt.disconnect();
+  static Future<void> _printTicketBytes(
+      BluetoothDevice device, TicketData ticket) async {
+    final connection =
+        await BluetoothConnection.toAddress(device.address);
+    try {
+      final bytes = Uint8List.fromList(_buildBytes(ticket));
+      connection.output.add(bytes);
+      await connection.output.allSent.timeout(
+        const Duration(seconds: 2),
+        onTimeout: () {},
+      );
+    } finally {
+      try {
+        await connection.close().timeout(const Duration(seconds: 2));
+      } catch (_) {}
+    }
   }
 }
-
-// ── Device picker sheet ───────────────────────────────────────────────────────
 
 class _PrinterPickerSheet extends StatefulWidget {
   final TicketData ticket;
@@ -194,28 +262,66 @@ class _PrinterPickerSheet extends StatefulWidget {
 }
 
 class _PrinterPickerSheetState extends State<_PrinterPickerSheet> {
-  final BluetoothPrint _bt = BluetoothPrint.instance;
+  final List<BluetoothDevice> _devices = [];
   String? _printingId;
   bool _scanning = true;
+  StreamSubscription<BluetoothDiscoveryResult>? _discoverySub;
 
   @override
   void initState() {
     super.initState();
-    _bt.startScan(timeout: const Duration(seconds: 6)).then((_) {
+    _startDiscovery();
+  }
+
+  void _startDiscovery() async {
+    try {
+      final bonded = await FlutterBluetoothSerial.instance.getBondedDevices();
+      if (mounted) {
+        setState(() {
+          for (final d in bonded) {
+            if (d.name != null &&
+                !_devices.any((x) => x.address == d.address)) {
+              _devices.add(d);
+            }
+          }
+        });
+      }
+    } catch (_) {
+      // Ignore errors loading bonded devices
+    }
+
+    _discoverySub = FlutterBluetoothSerial.instance
+        .startDiscovery()
+        .listen((r) {
+      if (!mounted) return;
+      final d = r.device;
+      if (d.name != null &&
+          !_devices.any((x) => x.address == d.address)) {
+        setState(() => _devices.add(d));
+      }
+    }, onError: (e) {
       if (mounted) setState(() => _scanning = false);
+    }, onDone: () {
+      if (mounted) setState(() => _scanning = false);
+    });
+
+    Future.delayed(const Duration(seconds: 6), () {
+      FlutterBluetoothSerial.instance.cancelDiscovery();
     });
   }
 
   @override
   void dispose() {
-    _bt.stopScan();
+    _discoverySub?.cancel();
+    FlutterBluetoothSerial.instance.cancelDiscovery();
     super.dispose();
   }
 
   Future<void> _selectDevice(BluetoothDevice device) async {
     setState(() => _printingId = device.address);
     try {
-      await TicketPrintService._print(device, widget.ticket);
+      await TicketPrintService._printTicketBytes(device, widget.ticket);
+      await TicketPrintService._savePrinter(device);
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -263,13 +369,8 @@ class _PrinterPickerSheetState extends State<_PrinterPickerSheet> {
             ),
             const Divider(),
             Expanded(
-              child: StreamBuilder<List<BluetoothDevice>>(
-                stream: _bt.scanResults,
-                initialData: const [],
-                builder: (context, snapshot) {
-                  final devices = snapshot.data ?? [];
-                  if (devices.isEmpty) {
-                    return Center(
+              child: _devices.isEmpty
+                  ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -285,31 +386,147 @@ class _PrinterPickerSheetState extends State<_PrinterPickerSheet> {
                           ),
                         ],
                       ),
-                    );
-                  }
-                  return ListView.builder(
-                    itemCount: devices.length,
-                    itemBuilder: (ctx, i) {
-                      final dev = devices[i];
-                      final isPrinting = _printingId == dev.address;
-                      return ListTile(
-                        leading: const Icon(Icons.print),
-                        title: Text(dev.name ?? 'Dispositivo desconocido'),
-                        subtitle: Text(dev.address ?? '',
-                            style: theme.textTheme.bodySmall),
-                        trailing: isPrinting
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.chevron_right),
-                        onTap: _printingId != null ? null : () => _selectDevice(dev),
-                      );
-                    },
-                  );
-                },
+                    )
+                  : ListView.builder(
+                      itemCount: _devices.length,
+                      itemBuilder: (ctx, i) {
+                        final dev = _devices[i];
+                        final isPrinting = _printingId == dev.address;
+                        return ListTile(
+                          leading: const Icon(Icons.print),
+                          title: Text(dev.name ?? 'Dispositivo desconocido'),
+                          subtitle: Text(dev.address,
+                              style: theme.textTheme.bodySmall),
+                          trailing: isPrinting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.chevron_right),
+                          onTap: _printingId != null
+                              ? null
+                              : () => _selectDevice(dev),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Quick print sheet (impresora favorita guardada) ───────────────────────────
+
+class _QuickPrintSheet extends StatefulWidget {
+  final TicketData ticket;
+  final String printerAddress;
+  final String printerName;
+
+  const _QuickPrintSheet({
+    required this.ticket,
+    required this.printerAddress,
+    required this.printerName,
+  });
+
+  @override
+  State<_QuickPrintSheet> createState() => _QuickPrintSheetState();
+}
+
+class _QuickPrintSheetState extends State<_QuickPrintSheet> {
+  bool _printing = false;
+
+  Future<void> _printNow() async {
+    setState(() => _printing = true);
+    final device = BluetoothDevice(
+      address: widget.printerAddress,
+      name: widget.printerName,
+    );
+    try {
+      await TicketPrintService._printTicketBytes(device, widget.ticket);
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Ticket impreso correctamente'),
+              backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _printing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo conectar: $e')),
+        );
+        // Si falla, abre el picker completo para que elija otra
+        Navigator.pop(context);
+        await showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+          builder: (ctx) => _PrinterPickerSheet(ticket: widget.ticket),
+        );
+      }
+    }
+  }
+
+  Future<void> _changePrinter() async {
+    Navigator.pop(context);
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => _PrinterPickerSheet(ticket: widget.ticket),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.print, size: 22),
+                const SizedBox(width: 8),
+                Text('Imprimir ticket', style: theme.textTheme.titleMedium),
+              ],
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: _printing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.print),
+                label: Text(
+                  _printing ? 'Imprimiendo...' : 'Imprimir con ${widget.printerName}',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14)),
+                onPressed: _printing ? null : _printNow,
               ),
+            ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              icon: const Icon(Icons.swap_horiz, size: 18),
+              label: const Text('Cambiar impresora'),
+              onPressed: _printing ? null : _changePrinter,
             ),
           ],
         ),

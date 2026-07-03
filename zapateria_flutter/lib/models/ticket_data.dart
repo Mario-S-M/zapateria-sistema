@@ -29,6 +29,7 @@ class TicketData {
   final double? cambio;
   final String tipoPrecio;
   final String? inversionistaNombre;
+  final String? clienteNombre;
 
   const TicketData({
     required this.folio,
@@ -41,5 +42,20 @@ class TicketData {
     this.cambio,
     required this.tipoPrecio,
     this.inversionistaNombre,
+    this.clienteNombre,
   });
+
+  TicketData copyWith({String? clienteNombre}) => TicketData(
+        folio: folio,
+        fecha: fecha,
+        items: items,
+        total: total,
+        metodoPago: metodoPago,
+        montoTarjeta: montoTarjeta,
+        montoRecibido: montoRecibido,
+        cambio: cambio,
+        tipoPrecio: tipoPrecio,
+        inversionistaNombre: inversionistaNombre,
+        clienteNombre: clienteNombre ?? this.clienteNombre,
+      );
 }

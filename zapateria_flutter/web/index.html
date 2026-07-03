@@ -33,6 +33,22 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <!-- Hidden iframe + helper used by WebPrintService to send receipt to the OS print dialog -->
+  <iframe id="print-frame" style="display:none;width:0;height:0;border:0;" title="print"></iframe>
+  <script>
+    function flutterPrintTicket(htmlContent) {
+      var iframe = document.getElementById('print-frame');
+      var doc = iframe.contentDocument || iframe.contentWindow.document;
+      doc.open('text/html', 'replace');
+      doc.write(htmlContent);
+      doc.close();
+      setTimeout(function () {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      }, 300);
+    }
+  </script>
+
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

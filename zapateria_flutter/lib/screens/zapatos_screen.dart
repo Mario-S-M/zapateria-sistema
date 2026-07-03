@@ -355,75 +355,6 @@ class _ZapatosScreenState extends State<ZapatosScreen> {
     }
   }
 
-  Future<void> _mergeZapato(ZapatoModel zapato) async {
-    final others = _zapatos.where((z) => z.id != zapato.id).toList();
-    if (others.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No hay otros zapatos para unir')));
-      return;
-    }
-
-    ZapatoModel? selected;
-    await showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModal) => AlertDialog(
-          title: const Text('Unir zapato duplicado'),
-          content: SizedBox(
-            width: 400,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Original: ${zapato.nombre} (${zapato.modelo})',
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                const Text('Selecciona el duplicado a eliminar:',
-                    style: TextStyle(color: Colors.grey)),
-                const SizedBox(height: 12),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 300),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: others.map((z) => RadioListTile<ZapatoModel>(
-                        value: z,
-                        groupValue: selected,
-                        title: Text(z.nombre),
-                        subtitle: Text('${z.modelo} · ${z.codigoBarras}'),
-                        onChanged: (v) => setModal(() => selected = v),
-                        dense: true,
-                      )).toList(),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
-            ElevatedButton(
-              onPressed: selected == null ? null : () => Navigator.pop(ctx, true),
-              child: const Text('Unir'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (selected == null || !mounted) return;
-
-    try {
-      await zapatoService.merge(zapato.id, selected!.id);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('"${selected!.nombre}" unido a "${zapato.nombre}"')),
-        );
-        _loadZapatos();
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -630,7 +561,6 @@ class _ZapatosScreenState extends State<ZapatosScreen> {
             onAddToCart: () => _addToCart(zapato, cartProvider),
             onDelete: () => _deleteZapato(zapato),
             onInventario: () => _goToInventario(zapato),
-            onMerge: () => _mergeZapato(zapato),
           );
         },
       ),
@@ -661,7 +591,6 @@ class _ZapatosScreenState extends State<ZapatosScreen> {
               onAddToCart: () => _addToCart(zapato, cartProvider),
               onDelete: () => _deleteZapato(zapato),
               onInventario: () => _goToInventario(zapato),
-              onMerge: () => _mergeZapato(zapato),
             );
           },
         );
@@ -726,7 +655,6 @@ class _ZapatoCard extends StatelessWidget {
   final VoidCallback onAddToCart;
   final VoidCallback onDelete;
   final VoidCallback onInventario;
-  final VoidCallback onMerge;
 
   const _ZapatoCard({
     required this.zapato,
@@ -735,7 +663,6 @@ class _ZapatoCard extends StatelessWidget {
     required this.onAddToCart,
     required this.onDelete,
     required this.onInventario,
-    required this.onMerge,
   });
 
   @override
@@ -795,11 +722,6 @@ class _ZapatoCard extends StatelessWidget {
                   onPressed: onInventario,
                 ),
                 IconButton(
-                  icon: const Icon(Icons.merge_type),
-                  tooltip: 'Unir duplicado',
-                  onPressed: onMerge,
-                ),
-                IconButton(
                   icon: const Icon(Icons.delete_outline, color: Colors.red),
                   onPressed: onDelete,
                 ),
@@ -840,7 +762,6 @@ class _ZapatoGridCard extends StatelessWidget {
   final VoidCallback onAddToCart;
   final VoidCallback onDelete;
   final VoidCallback onInventario;
-  final VoidCallback onMerge;
 
   const _ZapatoGridCard({
     required this.zapato,
@@ -849,7 +770,6 @@ class _ZapatoGridCard extends StatelessWidget {
     required this.onAddToCart,
     required this.onDelete,
     required this.onInventario,
-    required this.onMerge,
   });
 
   @override
@@ -950,17 +870,6 @@ class _ZapatoGridCard extends StatelessWidget {
                           icon: const Icon(Icons.inventory_2_outlined, size: 18),
                           tooltip: 'Inventario',
                           onPressed: onInventario,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      SizedBox(
-                        width: 30,
-                        height: 30,
-                        child: IconButton(
-                          padding: EdgeInsets.zero,
-                          icon: const Icon(Icons.merge_type, size: 18),
-                          tooltip: 'Unir duplicado',
-                          onPressed: onMerge,
                         ),
                       ),
                       const SizedBox(width: 4),

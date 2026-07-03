@@ -67,6 +67,10 @@ class _ReceiptCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ── Logo / Header ────────────────────────────────
+          Text('TICKET DE COMPRA',
+              style: boldReceipt.copyWith(fontSize: 14, letterSpacing: 1.2),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 6),
           Text(kBusinessName,
               style: boldReceipt.copyWith(fontSize: 16),
               textAlign: TextAlign.center),
@@ -82,14 +86,10 @@ class _ReceiptCard extends StatelessWidget {
           _Separator(dashed: false),
 
           // ── Folio + Fecha ─────────────────────────────────
-          Text('TICKET: ${ticket.folio}', style: receiptFont),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Fecha:', style: receiptFont),
-              Text(dateStr, style: receiptFont),
-            ],
-          ),
+          Text('TICKET: ${ticket.folio}', style: receiptFont, textAlign: TextAlign.center),
+          Text('Fecha: $dateStr', style: receiptFont, textAlign: TextAlign.center),
+          if (ticket.clienteNombre != null && ticket.clienteNombre!.isNotEmpty)
+            Text('Cliente: ${ticket.clienteNombre}', style: receiptFont, textAlign: TextAlign.center),
           _Separator(),
 
           // ── Items ─────────────────────────────────────────
@@ -160,6 +160,14 @@ class _ReceiptCard extends StatelessWidget {
               style: boldReceipt.copyWith(fontSize: 13),
               textAlign: TextAlign.center),
           const SizedBox(height: 8),
+
+          // ── Disclaimer ───────────────────────────────────
+          Text(
+            '* Este ticket no es un comprobante fiscal\n  ni documento legal.',
+            style: smallReceipt.copyWith(fontSize: 9, color: Colors.grey.shade500),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
         ],
       ),
     );
@@ -203,19 +211,21 @@ class _ItemRow extends StatelessWidget {
     ].join('  ');
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           '${item.nombre.toUpperCase()}${item.modelo.isNotEmpty ? '  ${item.modelo}' : ''}',
           style: boldFont,
+          textAlign: TextAlign.center,
         ),
         if (colorTalla.isNotEmpty)
-          Text('  $colorTalla',
-              style: receiptFont.copyWith(color: Colors.grey.shade600)),
+          Text(colorTalla,
+              style: receiptFont.copyWith(color: Colors.grey.shade600),
+              textAlign: TextAlign.center),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('  ${item.cantidad} × \$${formatPrice(item.precioUnitario)}',
+            Text('${item.cantidad} × \$${formatPrice(item.precioUnitario)}',
                 style: receiptFont),
             Text('\$${formatPrice(item.subtotal)}',
                 style: boldFont.copyWith(fontWeight: FontWeight.w600)),
@@ -252,10 +262,32 @@ class _PayRow extends StatelessWidget {
 
 // ── Bottom action bar ─────────────────────────────────────────────────────────
 
-class _BottomBar extends StatelessWidget {
+class _BottomBar extends StatefulWidget {
   final TicketData ticket;
 
   const _BottomBar({required this.ticket});
+
+  @override
+  State<_BottomBar> createState() => _BottomBarState();
+}
+
+class _BottomBarState extends State<_BottomBar> {
+  String? _clienteNombre;
+
+  Future<void> _onPrint() async {
+    final nombre = await showDialog<String?>(
+      context: context,
+      builder: (ctx) => _CustomerNameDialog(initialValue: _clienteNombre),
+    );
+    // null = dialog descartado (back/tap fuera) → mantener nombre anterior
+    // '' = usuario limpió el campo y confirmó → borrar nombre
+    if (nombre != null) {
+      setState(() => _clienteNombre = nombre.trim().isEmpty ? null : nombre.trim());
+    }
+    if (!mounted) return;
+    final ticketFinal = widget.ticket.copyWith(clienteNombre: _clienteNombre);
+    TicketPrintService.showPrinterPicker(context, ticketFinal);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -282,13 +314,60 @@ class _BottomBar extends StatelessWidget {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14)),
-                onPressed: () =>
-                    TicketPrintService.showPrinterPicker(context, ticket),
+                onPressed: _onPrint,
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── Customer name dialog ──────────────────────────────────────────────────────
+
+class _CustomerNameDialog extends StatefulWidget {
+  final String? initialValue;
+  const _CustomerNameDialog({this.initialValue});
+
+  @override
+  State<_CustomerNameDialog> createState() => _CustomerNameDialogState();
+}
+
+class _CustomerNameDialogState extends State<_CustomerNameDialog> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initialValue ?? '');
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Nombre del cliente'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        textCapitalization: TextCapitalization.words,
+        decoration: const InputDecoration(
+          hintText: 'Nombre y apellido (opcional)',
+          border: OutlineInputBorder(),
+        ),
+        onSubmitted: (_) => Navigator.pop(context, _controller.text),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, null),
+          child: const Text('Omitir'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, _controller.text),
+          child: const Text('Confirmar'),
+        ),
+      ],
     );
   }
 }
