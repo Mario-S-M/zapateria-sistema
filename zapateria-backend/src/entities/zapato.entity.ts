@@ -7,12 +7,14 @@ import {
   OneToMany,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { ZapatoColor } from './zapato-color.entity';
 import { VentaItem } from './venta-item.entity';
 import { Categoria } from './categoria.entity';
 import { Inversionista } from './inversionista.entity';
 import { PrecioRango } from './precio-rango.entity';
+import { Marca } from './marca.entity';
 
 export enum Horma {
   NORMAL = 'NORMAL',
@@ -21,6 +23,13 @@ export enum Horma {
 }
 
 @Entity('zapatos')
+@Index(
+  'idx_zapato_marca_codigo_normalizado',
+  ['marcaId', 'codigoNormalizado'],
+  {
+    unique: true,
+  },
+)
 export class Zapato {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -58,16 +67,29 @@ export class Zapato {
   @Column({ nullable: true })
   categoriaId?: string;
 
-  @ManyToOne(() => Categoria, categoria => categoria.zapatos)
+  @ManyToOne(() => Categoria, (categoria) => categoria.zapatos)
   @JoinColumn({ name: 'categoriaId' })
   categoria?: Categoria;
 
   @Column({ nullable: true })
   inversionistaId?: string;
 
-  @ManyToOne(() => Inversionista, inversionista => inversionista.zapatos)
+  @ManyToOne(() => Inversionista, (inversionista) => inversionista.zapatos)
   @JoinColumn({ name: 'inversionistaId' })
   inversionista?: Inversionista;
+
+  @Column({ nullable: true })
+  marcaId?: string;
+
+  @ManyToOne(() => Marca, (marca) => marca.zapatos, { nullable: true })
+  @JoinColumn({ name: 'marcaId' })
+  marca?: Marca;
+
+  // Concatenación de los segmentos fijo+modelo del patrón de la marca, extraída de
+  // un código de barras de ejemplo de ESTE zapato específico. Junto con marcaId
+  // permite reconocer el zapato al escanear códigos que varían por lote/talla.
+  @Column({ nullable: true })
+  codigoNormalizado?: string;
 
   @OneToMany(() => ZapatoColor, (zapatoColor) => zapatoColor.zapato)
   colores: ZapatoColor[];

@@ -8,11 +8,19 @@ import { VentaItem } from '../entities/venta-item.entity';
 import { ZapatoController } from './zapato.controller';
 import { ZapatoService } from './zapato.service';
 import { UploadModule } from '../upload/upload.module';
+import { MarcaModule } from '../marca/marca.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Zapato, ZapatoColor, PrecioRango, Inventario, VentaItem]),
+    TypeOrmModule.forFeature([
+      Zapato,
+      ZapatoColor,
+      PrecioRango,
+      Inventario,
+      VentaItem,
+    ]),
     UploadModule,
+    MarcaModule,
   ],
   controllers: [ZapatoController],
   providers: [ZapatoService],

@@ -21,6 +21,11 @@ class ZapatoService {
     return ZapatoModel.fromJson(response.data);
   }
 
+  Future<ZapatoEscaneoResult> escanear(String codigo) async {
+    final response = await _dio.get('/zapatos/escanear/$codigo');
+    return ZapatoEscaneoResult.fromJson(response.data);
+  }
+
   Future<ZapatoModel> create(ZapatoCreateDto data) async {
     final response = await _dio.post('/zapatos', data: data.toJson());
     return ZapatoModel.fromJson(response.data);
@@ -77,6 +82,8 @@ class ZapatoCreateDto {
   final String? categoriaId;
   final String? inversionistaId;
   final List<PrecioRangoDto> precioRangos;
+  final String? marcaId;
+  final String? codigoNormalizado;
 
   ZapatoCreateDto({
     required this.codigoBarras,
@@ -93,6 +100,8 @@ class ZapatoCreateDto {
     this.categoriaId,
     this.inversionistaId,
     this.precioRangos = const [],
+    this.marcaId,
+    this.codigoNormalizado,
   });
 
   Map<String, dynamic> toJson() {
@@ -111,6 +120,8 @@ class ZapatoCreateDto {
       if (categoriaId != null) 'categoriaId': categoriaId,
       if (inversionistaId != null) 'inversionistaId': inversionistaId,
       if (precioRangos.isNotEmpty) 'precioRangos': precioRangos.map((r) => r.toJson()).toList(),
+      if (marcaId != null) 'marcaId': marcaId,
+      if (codigoNormalizado != null) 'codigoNormalizado': codigoNormalizado,
     };
   }
 }
@@ -130,6 +141,8 @@ class ZapatoUpdateDto {
   final String? categoriaId;
   final String? inversionistaId;
   final List<PrecioRangoDto>? precioRangos;
+  final String? marcaId;
+  final String? codigoNormalizado;
 
   ZapatoUpdateDto({
     this.codigoBarras,
@@ -146,6 +159,8 @@ class ZapatoUpdateDto {
     this.categoriaId,
     this.inversionistaId,
     this.precioRangos,
+    this.marcaId,
+    this.codigoNormalizado,
   });
 
   Map<String, dynamic> toJson() {
@@ -164,7 +179,25 @@ class ZapatoUpdateDto {
       if (categoriaId != null) 'categoriaId': categoriaId,
       if (inversionistaId != null) 'inversionistaId': inversionistaId,
       if (precioRangos != null) 'precioRangos': precioRangos!.map((r) => r.toJson()).toList(),
+      if (marcaId != null) 'marcaId': marcaId,
+      if (codigoNormalizado != null) 'codigoNormalizado': codigoNormalizado,
     };
+  }
+}
+
+class ZapatoEscaneoResult {
+  final ZapatoModel zapato;
+  final double? tallaDetectada;
+
+  ZapatoEscaneoResult({required this.zapato, this.tallaDetectada});
+
+  factory ZapatoEscaneoResult.fromJson(Map<String, dynamic> json) {
+    return ZapatoEscaneoResult(
+      zapato: ZapatoModel.fromJson(json['zapato'] as Map<String, dynamic>),
+      tallaDetectada: json['tallaDetectada'] != null
+          ? (json['tallaDetectada'] as num).toDouble()
+          : null,
+    );
   }
 }
 

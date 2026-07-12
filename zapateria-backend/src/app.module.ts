@@ -10,6 +10,7 @@ import { VentaModule } from './venta/venta.module';
 import { UploadModule } from './upload/upload.module';
 import { CategoriaModule } from './categoria/categoria.module';
 import { InventarioModule } from './inventario/inventario.module';
+import { MarcaModule } from './marca/marca.module';
 import { Color } from './entities/color.entity';
 import { Zapato } from './entities/zapato.entity';
 import { ZapatoColor } from './entities/zapato-color.entity';
@@ -19,6 +20,7 @@ import { VentaItem } from './entities/venta-item.entity';
 import { Categoria } from './entities/categoria.entity';
 import { Inventario } from './entities/inventario.entity';
 import { PrecioRango } from './entities/precio-rango.entity';
+import { Marca } from './entities/marca.entity';
 
 @Module({
   imports: [
@@ -32,7 +34,18 @@ import { PrecioRango } from './entities/precio-rango.entity';
       username: process.env.DB_USERNAME || 'postgres',
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_DATABASE || 'zapateria',
-      entities: [Color, Zapato, ZapatoColor, Inversionista, Venta, VentaItem, Categoria, Inventario, PrecioRango],
+      entities: [
+        Color,
+        Zapato,
+        ZapatoColor,
+        Inversionista,
+        Venta,
+        VentaItem,
+        Categoria,
+        Inventario,
+        PrecioRango,
+        Marca,
+      ],
       synchronize: true,
       retryAttempts: 3,
       retryDelay: 3000,
@@ -50,6 +63,7 @@ import { PrecioRango } from './entities/precio-rango.entity';
     UploadModule,
     CategoriaModule,
     InventarioModule,
+    MarcaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

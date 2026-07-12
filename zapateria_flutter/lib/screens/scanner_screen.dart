@@ -50,10 +50,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
     setState(() { _isProcessing = true; _lastCode = result.rawContent; });
 
     try {
-      final zapato = await zapatoService.getByCodigoBarras(result.rawContent);
-      final inventario = await inventarioService.getByZapato(zapato.id);
+      final resultado = await zapatoService.escanear(result.rawContent);
+      final inventario = await inventarioService.getByZapato(resultado.zapato.id);
       if (!mounted) return;
-      await _showAddToCartDialog(zapato, inventario);
+      await _showAddToCartDialog(resultado.zapato, inventario,
+          tallaPreseleccionada: resultado.tallaDetectada);
     } catch (e) {
       if (mounted) {
         final msg = e.toString().contains('SocketException') || e.toString().contains('Connection')
@@ -68,7 +69,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
     }
   }
 
-  Future<void> _showAddToCartDialog(ZapatoModel zapato, List<InventarioItemModel> inventario) async {
+  Future<void> _showAddToCartDialog(
+    ZapatoModel zapato,
+    List<InventarioItemModel> inventario, {
+    double? tallaPreseleccionada,
+  }) async {
     final cart = context.read<CartProvider>();
     final tipo = cart.tipoPrecio;
 
@@ -95,7 +100,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
         builder: (ctx, setModal) {
           final tallasDisp = tallasPara(selectedColorId);
           if (selectedTalla == null && tallasDisp.isNotEmpty) {
-            selectedTalla = tallasDisp.first.talla;
+            final detectada = tallaPreseleccionada != null
+                ? tallasDisp.where((t) => t.talla == tallaPreseleccionada).toList()
+                : <InventarioItemModel>[];
+            selectedTalla = detectada.isNotEmpty ? detectada.first.talla : tallasDisp.first.talla;
           }
 
           double precio;
@@ -158,6 +166,16 @@ class _ScannerScreenState extends State<ScannerScreen> {
                   ],
                   if (tallasDisp.isNotEmpty) ...[
                     const Text('Talla:', style: TextStyle(fontWeight: FontWeight.w600)),
+                    if (tallaPreseleccionada != null &&
+                        selectedTalla == tallaPreseleccionada)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Talla detectada automáticamente: '
+                          '${tallaPreseleccionada % 1 == 0 ? tallaPreseleccionada.toInt() : tallaPreseleccionada}',
+                          style: const TextStyle(fontSize: 12, color: Colors.green),
+                        ),
+                      ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,

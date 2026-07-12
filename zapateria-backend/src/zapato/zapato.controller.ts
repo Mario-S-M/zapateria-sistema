@@ -8,6 +8,7 @@ import {
   Param,
   HttpCode,
   HttpStatus,
+  NotFoundException,
 } from '@nestjs/common';
 import { ZapatoService } from './zapato.service';
 import { CreateZapatoDto, UpdateZapatoDto } from '../dto/zapato.dto';
@@ -31,6 +32,17 @@ export class ZapatoController {
     return this.zapatoService.findByCodigoBarras(codigoBarras);
   }
 
+  @Get('escanear/:codigo')
+  async escanear(@Param('codigo') codigo: string) {
+    const resultado = await this.zapatoService.findByCodigoBarrasSmart(codigo);
+    if (!resultado.zapato) {
+      throw new NotFoundException(
+        'Zapato no encontrado para este código de barras',
+      );
+    }
+    return resultado;
+  }
+
   @Post()
   create(@Body() createZapatoDto: CreateZapatoDto) {
     return this.zapatoService.create(createZapatoDto);
@@ -42,10 +54,7 @@ export class ZapatoController {
   }
 
   @Post(':id/merge/:duplicateId')
-  merge(
-    @Param('id') id: string,
-    @Param('duplicateId') duplicateId: string,
-  ) {
+  merge(@Param('id') id: string, @Param('duplicateId') duplicateId: string) {
     return this.zapatoService.merge(id, duplicateId);
   }
 

@@ -89,6 +89,14 @@ export class CreateZapatoDto {
   @ValidateNested({ each: true })
   @Type(() => PrecioRangoDto)
   precioRangos?: PrecioRangoDto[];
+
+  @IsOptional()
+  @IsString()
+  marcaId?: string;
+
+  @IsOptional()
+  @IsString()
+  codigoNormalizado?: string;
 }
 
 export class UpdateZapatoDto {
@@ -159,4 +167,12 @@ export class UpdateZapatoDto {
   @ValidateNested({ each: true })
   @Type(() => PrecioRangoDto)
   precioRangos?: PrecioRangoDto[];
+
+  @IsOptional()
+  @IsString()
+  marcaId?: string;
+
+  @IsOptional()
+  @IsString()
+  codigoNormalizado?: string;
 }

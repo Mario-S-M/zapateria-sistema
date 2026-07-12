@@ -82,6 +82,103 @@ class CategoriaModel {
   }
 }
 
+enum SegmentoTipo { fijo, modelo, lote, talla }
+
+extension SegmentoTipoExt on SegmentoTipo {
+  String get apiValue => name;
+
+  static SegmentoTipo fromApi(String v) =>
+      SegmentoTipo.values.firstWhere((e) => e.name == v);
+
+  String get label {
+    switch (this) {
+      case SegmentoTipo.fijo: return 'Fijo (marca)';
+      case SegmentoTipo.modelo: return 'Modelo';
+      case SegmentoTipo.lote: return 'Lote (ignorar)';
+      case SegmentoTipo.talla: return 'Talla';
+    }
+  }
+}
+
+class BarcodeSegmentoModel {
+  final SegmentoTipo tipo;
+  final int inicio;
+  final int longitud;
+
+  BarcodeSegmentoModel({
+    required this.tipo,
+    required this.inicio,
+    required this.longitud,
+  });
+
+  factory BarcodeSegmentoModel.fromJson(Map<String, dynamic> json) {
+    return BarcodeSegmentoModel(
+      tipo: SegmentoTipoExt.fromApi(json['tipo'] as String),
+      inicio: json['inicio'] as int,
+      longitud: json['longitud'] as int,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'tipo': tipo.apiValue,
+    'inicio': inicio,
+    'longitud': longitud,
+  };
+}
+
+class MarcaModel {
+  final String id;
+  final String nombre;
+  final String? codigoEjemplo;
+  final List<BarcodeSegmentoModel>? patronSegmentos;
+  final int? patronLongitud;
+  final bool activo;
+  final String createdAt;
+  final String updatedAt;
+
+  MarcaModel({
+    required this.id,
+    required this.nombre,
+    this.codigoEjemplo,
+    this.patronSegmentos,
+    this.patronLongitud,
+    required this.activo,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  bool get tienePatron => patronSegmentos != null && patronSegmentos!.isNotEmpty;
+
+  factory MarcaModel.fromJson(Map<String, dynamic> json) {
+    final segmentosJson = json['patronSegmentos'] as List?;
+    return MarcaModel(
+      id: json['id'] as String,
+      nombre: json['nombre'] as String,
+      codigoEjemplo: json['codigoEjemplo'] as String?,
+      patronSegmentos: segmentosJson
+          ?.whereType<Map<String, dynamic>>()
+          .map((e) => BarcodeSegmentoModel.fromJson(e))
+          .toList(),
+      patronLongitud: json['patronLongitud'] as int?,
+      activo: json['activo'] as bool,
+      createdAt: json['createdAt'] as String,
+      updatedAt: json['updatedAt'] as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'nombre': nombre,
+    if (codigoEjemplo != null) 'codigoEjemplo': codigoEjemplo,
+    if (patronSegmentos != null)
+      'patronSegmentos': patronSegmentos!.map((s) => s.toJson()).toList(),
+    if (patronLongitud != null) 'patronLongitud': patronLongitud,
+    'activo': activo,
+    'createdAt': createdAt,
+    'updatedAt': updatedAt,
+  };
+}
+
 enum Horma { normal, reducido, amplio }
 
 extension HormaExt on Horma {
@@ -162,6 +259,9 @@ class ZapatoModel {
   final CategoriaModel? categoria;
   final String? inversionistaId;
   final InversionistaModel? inversionista;
+  final String? marcaId;
+  final MarcaModel? marca;
+  final String? codigoNormalizado;
   final List<ZapatoColorModel> colores;
   final List<PrecioRangoModel> precioRangos;
   final String createdAt;
@@ -183,6 +283,9 @@ class ZapatoModel {
     this.categoria,
     this.inversionistaId,
     this.inversionista,
+    this.marcaId,
+    this.marca,
+    this.codigoNormalizado,
     required this.colores,
     this.precioRangos = const [],
     required this.createdAt,
@@ -241,6 +344,11 @@ class ZapatoModel {
       inversionista: json['inversionista'] != null
           ? InversionistaModel.fromJson(json['inversionista'] as Map<String, dynamic>)
           : null,
+      marcaId: json['marcaId'] as String?,
+      marca: json['marca'] != null
+          ? MarcaModel.fromJson(json['marca'] as Map<String, dynamic>)
+          : null,
+      codigoNormalizado: json['codigoNormalizado'] as String?,
       colores: colores,
       precioRangos: precioRangos,
       createdAt: json['createdAt'] as String,
@@ -262,6 +370,8 @@ class ZapatoModel {
       'medidaFin': medidaFin,
       if (categoriaId != null) 'categoriaId': categoriaId,
       if (inversionistaId != null) 'inversionistaId': inversionistaId,
+      if (marcaId != null) 'marcaId': marcaId,
+      if (codigoNormalizado != null) 'codigoNormalizado': codigoNormalizado,
       'colores': colores.map((c) => c.colorId).toList(),
       'precioRangos': precioRangos.map((r) => r.toJson()).toList(),
       'createdAt': createdAt,

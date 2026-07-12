@@ -6,6 +6,8 @@ import 'package:zapateria_flutter/services/zapato_service.dart';
 import 'package:zapateria_flutter/services/color_service.dart';
 import 'package:zapateria_flutter/services/categoria_service.dart';
 import 'package:zapateria_flutter/services/inversionista_service.dart';
+import 'package:zapateria_flutter/services/marca_service.dart';
+import 'package:zapateria_flutter/components/barcode_pattern_builder.dart';
 import 'package:zapateria_flutter/utils/barcode_utils.dart';
 import 'package:zapateria_flutter/utils/talla_converter.dart';
 import 'package:zapateria_flutter/components/color_circle.dart';
@@ -46,9 +48,13 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
   List<ColorModel> _colores = [];
   List<CategoriaModel> _categorias = [];
   List<InversionistaModel> _inversionistas = [];
+  List<MarcaModel> _marcas = [];
   List<String> _selectedColorIds = [];
   String? _selectedCategoriaId;
   String? _selectedInversionistaId;
+  String? _selectedMarcaId;
+  String? _codigoNormalizadoActual;
+  late TextEditingController _codigoEjemploZapatoController;
   List<String> _fotos = [];
   bool _loading = false;
   Horma _horma = Horma.normal;
@@ -70,6 +76,9 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
     _selectedColorIds = widget.zapato?.colores.map((c) => c.colorId).toList() ?? [];
     _selectedCategoriaId = widget.zapato?.categoriaId;
     _selectedInversionistaId = widget.zapato?.inversionistaId;
+    _selectedMarcaId = widget.zapato?.marcaId;
+    _codigoNormalizadoActual = widget.zapato?.codigoNormalizado;
+    _codigoEjemploZapatoController = TextEditingController();
     _fotos = List<String>.from(widget.zapato?.fotos ?? []);
     if (_fotos.isEmpty && widget.zapato?.foto != null && widget.zapato!.foto!.isNotEmpty) {
       _fotos = [widget.zapato!.foto!];
@@ -90,12 +99,14 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
         colorService.getAll(),
         categoriaService.getAll(),
         inversionistaService.getAll(),
+        marcaService.getAll(),
       ]);
       if (mounted) {
         setState(() {
           _colores = results[0] as List<ColorModel>;
           _categorias = results[1] as List<CategoriaModel>;
           _inversionistas = results[2] as List<InversionistaModel>;
+          _marcas = results[3] as List<MarcaModel>;
         });
       }
     } catch (e) {
@@ -114,6 +125,7 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
     _medidaFinController.dispose();
     _categoriaSearchController.dispose();
     _inversionistaSearchController.dispose();
+    _codigoEjemploZapatoController.dispose();
     for (final r in _precioRangos) { r.dispose(); }
     super.dispose();
   }
@@ -157,6 +169,8 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
             categoriaId: _selectedCategoriaId,
             inversionistaId: _selectedInversionistaId,
             precioRangos: rangos,
+            marcaId: _selectedMarcaId,
+            codigoNormalizado: _selectedMarcaId != null ? _codigoNormalizadoActual : null,
           ),
         );
       } else {
@@ -175,6 +189,8 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
           categoriaId: _selectedCategoriaId,
           inversionistaId: _selectedInversionistaId,
           precioRangos: rangos,
+          marcaId: _selectedMarcaId,
+          codigoNormalizado: _selectedMarcaId != null ? _codigoNormalizadoActual : null,
         );
         await zapatoService.create(dto);
       }
@@ -272,6 +288,88 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
     );
   }
 
+  Widget _buildMarcaPatronSection(ThemeData theme) {
+    final marcasConPatron = _marcas.where((m) => m.tienePatron).toList();
+    final marcaSeleccionada =
+        marcasConPatron.firstWhereOrNull((m) => m.id == _selectedMarcaId);
+    final codigoEjemplo = _codigoEjemploZapatoController.text.trim();
+    final longitudEsperada = marcaSeleccionada?.patronLongitud;
+    final longitudInvalida = marcaSeleccionada != null &&
+        codigoEjemplo.isNotEmpty &&
+        longitudEsperada != null &&
+        codigoEjemplo.length != longitudEsperada;
+
+    return ExpansionTile(
+      title: const Text('Código de barras variable por marca (opcional)'),
+      subtitle: Text(
+        marcaSeleccionada != null ? 'Marca: ${marcaSeleccionada.nombre}' : 'No configurado',
+        style: theme.textTheme.bodySmall,
+      ),
+      initiallyExpanded: _selectedMarcaId != null,
+      childrenPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      children: [
+        if (marcasConPatron.isEmpty)
+          Text(
+            'No hay marcas con patrón definido. Ve a Categorías > Gestionar '
+            'marcas para crear una.',
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+          )
+        else ...[
+          DropdownButtonFormField<String>(
+            value: _selectedMarcaId,
+            decoration: const InputDecoration(labelText: 'Marca', border: OutlineInputBorder()),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('Ninguna')),
+              ...marcasConPatron.map((m) => DropdownMenuItem(value: m.id, child: Text(m.nombre))),
+            ],
+            onChanged: (v) => setState(() {
+              _selectedMarcaId = v;
+              _codigoEjemploZapatoController.clear();
+              _codigoNormalizadoActual =
+                  v == widget.zapato?.marcaId ? widget.zapato?.codigoNormalizado : null;
+            }),
+          ),
+          if (marcaSeleccionada != null) ...[
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _codigoEjemploZapatoController,
+              decoration: const InputDecoration(
+                labelText: 'Código de barras de ejemplo de ESTE zapato',
+                helperText: 'Pega un código físico real de este zapato/color/talla',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (v) => setState(() {
+                final codigo = v.trim();
+                if (codigo.isEmpty) {
+                  _codigoNormalizadoActual = _selectedMarcaId == widget.zapato?.marcaId
+                      ? widget.zapato?.codigoNormalizado
+                      : null;
+                } else if (codigo.length != marcaSeleccionada.patronLongitud) {
+                  _codigoNormalizadoActual = null;
+                } else {
+                  _codigoNormalizadoActual =
+                      computeCodigoNormalizado(marcaSeleccionada.patronSegmentos!, codigo);
+                }
+              }),
+            ),
+            const SizedBox(height: 4),
+            if (longitudInvalida)
+              Text(
+                'Este código no coincide con la longitud esperada '
+                '($longitudEsperada caracteres) para la marca seleccionada',
+                style: theme.textTheme.bodySmall?.copyWith(color: Colors.red),
+              )
+            else if (_codigoNormalizadoActual != null)
+              Text(
+                'Código que se guardará: $_codigoNormalizadoActual',
+                style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+          ],
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     Widget form = kIsWeb ? _buildWebForm(context) : _buildMobileForm(context);
@@ -347,6 +445,8 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
           icon: const Icon(Icons.refresh, size: 16),
           label: const Text('Generar código'),
         ),
+        const SizedBox(height: 4),
+        _buildMarcaPatronSection(theme),
         const SizedBox(height: 12),
         TextFormField(
           controller: _nombreController,
@@ -486,6 +586,8 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
             icon: const Icon(Icons.refresh, size: 16),
             label: const Text('Generar código'),
           ),
+          const SizedBox(height: 4),
+          _buildMarcaPatronSection(theme),
           const SizedBox(height: 12),
           TextFormField(
             controller: _nombreController,

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:zapateria_flutter/models/models.dart';
+import 'package:zapateria_flutter/screens/marcas_screen.dart';
 import 'package:zapateria_flutter/services/categoria_service.dart';
 
 class CategoriasScreen extends StatefulWidget {
@@ -175,7 +176,18 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Categorías')),
+      appBar: AppBar(
+        title: const Text('Categorías'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.branding_watermark),
+            tooltip: 'Gestionar marcas',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const MarcasScreen()),
+            ),
+          ),
+        ],
+      ),
       body: kIsWeb
           ? Align(
               alignment: Alignment.topCenter,

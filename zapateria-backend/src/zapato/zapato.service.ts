@@ -12,6 +12,22 @@ import { Inventario } from '../entities/inventario.entity';
 import { VentaItem } from '../entities/venta-item.entity';
 import { CreateZapatoDto, UpdateZapatoDto } from '../dto/zapato.dto';
 import { UploadService } from '../upload/upload.service';
+import { MarcaService } from '../marca/marca.service';
+
+const ZAPATO_RELATIONS = [
+  'colores',
+  'colores.color',
+  'categoria',
+  'inversionista',
+  'precioRangos',
+  'marca',
+];
+
+export interface EscaneoResult {
+  zapato: Zapato | null;
+  tallaDetectada: number | null;
+  origen: 'exacto' | 'patron' | null;
+}
 
 @Injectable()
 export class ZapatoService {
@@ -27,11 +43,12 @@ export class ZapatoService {
     @InjectRepository(VentaItem)
     private ventaItemRepository: Repository<VentaItem>,
     private uploadService: UploadService,
+    private marcaService: MarcaService,
   ) {}
 
   async findAll(): Promise<Zapato[]> {
     return this.zapatoRepository.find({
-      relations: ['colores', 'colores.color', 'categoria', 'inversionista', 'precioRangos'],
+      relations: ZAPATO_RELATIONS,
       order: { createdAt: 'DESC' },
     });
   }
@@ -39,15 +56,63 @@ export class ZapatoService {
   async findOne(id: string): Promise<Zapato | null> {
     return this.zapatoRepository.findOne({
       where: { id },
-      relations: ['colores', 'colores.color', 'categoria', 'inversionista', 'precioRangos'],
+      relations: ZAPATO_RELATIONS,
     });
   }
 
   async findByCodigoBarras(codigoBarras: string): Promise<Zapato | null> {
     return this.zapatoRepository.findOne({
       where: { codigoBarras },
-      relations: ['colores', 'colores.color', 'categoria', 'inversionista', 'precioRangos'],
+      relations: ZAPATO_RELATIONS,
     });
+  }
+
+  async findByCodigoBarrasSmart(codigo: string): Promise<EscaneoResult> {
+    const exacto = await this.findByCodigoBarras(codigo);
+    if (exacto) {
+      return { zapato: exacto, tallaDetectada: null, origen: 'exacto' };
+    }
+
+    const marcas = await this.marcaService.findConPatronPorLongitud(
+      codigo.length,
+    );
+    const candidatos: { zapato: Zapato; talla: number }[] = [];
+
+    for (const marca of marcas) {
+      const segmentos = marca.patronSegmentos;
+      if (!segmentos) continue;
+
+      const codigoNormalizado = segmentos
+        .filter((s) => s.tipo === 'fijo' || s.tipo === 'modelo')
+        .map((s) => codigo.substring(s.inicio, s.inicio + s.longitud))
+        .join('');
+
+      const tallaSegmento = segmentos.find((s) => s.tipo === 'talla');
+      if (!tallaSegmento) continue;
+
+      const tallaStr = codigo.substring(
+        tallaSegmento.inicio,
+        tallaSegmento.inicio + tallaSegmento.longitud,
+      );
+      const talla = parseFloat(tallaStr);
+      if (isNaN(talla)) continue;
+
+      const zapato = await this.zapatoRepository.findOne({
+        where: { marcaId: marca.id, codigoNormalizado },
+        relations: ZAPATO_RELATIONS,
+      });
+      if (zapato) candidatos.push({ zapato, talla });
+    }
+
+    if (candidatos.length === 1) {
+      return {
+        zapato: candidatos[0].zapato,
+        tallaDetectada: candidatos[0].talla,
+        origen: 'patron',
+      };
+    }
+
+    return { zapato: null, tallaDetectada: null, origen: null };
   }
 
   async create(createZapatoDto: CreateZapatoDto): Promise<Zapato> {
@@ -61,15 +126,20 @@ export class ZapatoService {
       throw new BadRequestException('El código de barras ya existe');
     }
 
-    const { colorIds, categoriaId, inversionistaId, precioRangos, ...zapatoData } =
-      createZapatoDto;
+    const {
+      colorIds,
+      categoriaId,
+      inversionistaId,
+      precioRangos,
+      ...zapatoData
+    } = createZapatoDto;
 
     const zapato = this.zapatoRepository.create({
       ...zapatoData,
       categoriaId,
       inversionistaId,
     });
-    const savedZapato = await this.zapatoRepository.save(zapato);
+    const savedZapato = await this.saveZapato(zapato);
 
     if (colorIds && colorIds.length > 0) {
       const zapatoColores = colorIds.map((colorId) =>
@@ -99,8 +169,13 @@ export class ZapatoService {
     id: string,
     updateZapatoDto: UpdateZapatoDto,
   ): Promise<Zapato | null> {
-    const { colorIds, categoriaId, inversionistaId, precioRangos, ...zapatoData } =
-      updateZapatoDto;
+    const {
+      colorIds,
+      categoriaId,
+      inversionistaId,
+      precioRangos,
+      ...zapatoData
+    } = updateZapatoDto;
 
     const updateData = {
       ...zapatoData,
@@ -109,7 +184,11 @@ export class ZapatoService {
     };
 
     if (Object.keys(updateData).length > 0) {
-      await this.zapatoRepository.update(id, updateData);
+      try {
+        await this.zapatoRepository.update(id, updateData);
+      } catch (error) {
+        this.handleUniqueConstraintError(error);
+      }
     }
 
     if (colorIds && colorIds.length > 0) {
@@ -142,11 +221,21 @@ export class ZapatoService {
       throw new BadRequestException('No puedes unir un zapato consigo mismo');
     }
 
-    const original = await this.zapatoRepository.findOne({ where: { id: originalId } });
-    const duplicate = await this.zapatoRepository.findOne({ where: { id: duplicateId } });
+    const original = await this.zapatoRepository.findOne({
+      where: { id: originalId },
+    });
+    const duplicate = await this.zapatoRepository.findOne({
+      where: { id: duplicateId },
+    });
 
-    if (!original) throw new NotFoundException(`Zapato original ${originalId} no encontrado`);
-    if (!duplicate) throw new NotFoundException(`Zapato duplicado ${duplicateId} no encontrado`);
+    if (!original)
+      throw new NotFoundException(
+        `Zapato original ${originalId} no encontrado`,
+      );
+    if (!duplicate)
+      throw new NotFoundException(
+        `Zapato duplicado ${duplicateId} no encontrado`,
+      );
 
     // Move inventory: add quantities to original, skip if original already has that combo
     const dupInventario = await this.inventarioRepository.find({
@@ -155,7 +244,11 @@ export class ZapatoService {
 
     for (const item of dupInventario) {
       const existing = await this.inventarioRepository.findOne({
-        where: { zapatoId: originalId, colorId: item.colorId ?? undefined, talla: item.talla },
+        where: {
+          zapatoId: originalId,
+          colorId: item.colorId ?? undefined,
+          talla: item.talla,
+        },
       });
       if (existing) {
         existing.cantidad += item.cantidad;
@@ -187,10 +280,14 @@ export class ZapatoService {
     // Delete duplicate photos
     const allFotos = [
       ...(duplicate.fotos ?? []),
-      ...(duplicate.foto && !(duplicate.fotos ?? []).includes(duplicate.foto) ? [duplicate.foto] : []),
+      ...(duplicate.foto && !(duplicate.fotos ?? []).includes(duplicate.foto)
+        ? [duplicate.foto]
+        : []),
     ];
     for (const fotoPath of allFotos) {
-      try { await this.uploadService.deleteZapatoImage(fotoPath); } catch (_) {}
+      try {
+        await this.uploadService.deleteZapatoImage(fotoPath);
+      } catch (_) {}
     }
 
     return this.findOne(originalId);
@@ -215,7 +312,9 @@ export class ZapatoService {
 
       const allFotos = [
         ...(zapato.fotos ?? []),
-        ...(zapato.foto && !(zapato.fotos ?? []).includes(zapato.foto) ? [zapato.foto] : []),
+        ...(zapato.foto && !(zapato.fotos ?? []).includes(zapato.foto)
+          ? [zapato.foto]
+          : []),
       ];
       for (const fotoPath of allFotos) {
         try {
@@ -226,5 +325,27 @@ export class ZapatoService {
       console.error('Error al eliminar zapato:', error);
       throw error;
     }
+  }
+
+  private async saveZapato(zapato: Zapato): Promise<Zapato> {
+    try {
+      return await this.zapatoRepository.save(zapato);
+    } catch (error) {
+      this.handleUniqueConstraintError(error);
+    }
+  }
+
+  private handleUniqueConstraintError(error: unknown): never {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: string }).code === '23505'
+    ) {
+      throw new BadRequestException(
+        'Ya existe un zapato con este código normalizado para esta marca',
+      );
+    }
+    throw error;
   }
 }
