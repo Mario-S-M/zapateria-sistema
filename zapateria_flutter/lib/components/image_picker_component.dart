@@ -48,7 +48,7 @@ class _MultiImagePickerComponentState extends State<MultiImagePickerComponent> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final canAdd = widget.images.length < widget.maxImages && !_uploading;
+    final canAdd = !_uploading;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -58,7 +58,7 @@ class _MultiImagePickerComponentState extends State<MultiImagePickerComponent> {
             Text('Fotos', style: theme.textTheme.labelLarge),
             const SizedBox(width: 6),
             Text(
-              '${widget.images.length}/${widget.maxImages}',
+              '${widget.images.length}',
               style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
             ),
           ],
