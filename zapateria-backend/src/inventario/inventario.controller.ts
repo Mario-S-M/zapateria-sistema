@@ -1,6 +1,9 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { InventarioService } from './inventario.service';
-import { BulkUpsertInventarioDto } from '../dto/inventario.dto';
+import {
+  BulkUpsertInventarioDto,
+  IncrementInventarioDto,
+} from '../dto/inventario.dto';
 
 @Controller('inventario')
 export class InventarioController {
@@ -19,5 +22,15 @@ export class InventarioController {
   @Post('bulk')
   bulkUpsert(@Body() dto: BulkUpsertInventarioDto) {
     return this.inventarioService.bulkUpsert(dto.items);
+  }
+
+  @Post('increment')
+  increment(@Body() dto: IncrementInventarioDto) {
+    return this.inventarioService.increment(
+      dto.zapatoId,
+      dto.colorId ?? null,
+      dto.talla,
+      dto.delta,
+    );
   }
 }

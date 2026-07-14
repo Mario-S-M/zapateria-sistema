@@ -15,6 +15,9 @@ export interface BarcodeSegmento {
   tipo: BarcodeSegmentoTipo;
   inicio: number;
   longitud: number;
+  // Solo aplica a tipo === 'talla': el número trae un decimal implícito
+  // (ej. "265" en el código representa la talla 26.5).
+  decimalImplicito?: boolean;
 }
 
 @Entity('marcas')

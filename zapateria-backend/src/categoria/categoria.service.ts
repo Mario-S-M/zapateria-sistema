@@ -42,9 +42,17 @@ export class CategoriaService {
 
   async update(id: string, updateCategoriaDto: UpdateCategoriaDto): Promise<Categoria> {
     const categoria = await this.findOne(id);
-    
-    Object.assign(categoria, updateCategoriaDto);
-    
+
+    // Los campos opcionales del DTO quedan como `undefined` explícito (no
+    // ausentes) por las semánticas de class fields de TS; Object.assign sí
+    // copia claves `undefined`, así que hay que filtrarlas para no borrar
+    // valores ya cargados de la entidad cuando el cliente no los envía.
+    for (const [key, value] of Object.entries(updateCategoriaDto)) {
+      if (value !== undefined) {
+        (categoria as unknown as Record<string, unknown>)[key] = value;
+      }
+    }
+
     return this.categoriaRepository.save(categoria);
   }
 

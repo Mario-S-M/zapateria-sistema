@@ -22,6 +22,21 @@ class InventarioService {
   Future<void> bulkUpsert(List<Map<String, dynamic>> items) async {
     await _dio.post('/inventario/bulk', data: {'items': items});
   }
+
+  Future<InventarioItemModel> increment({
+    required String zapatoId,
+    String? colorId,
+    required double talla,
+    required int delta,
+  }) async {
+    final response = await _dio.post('/inventario/increment', data: {
+      'zapatoId': zapatoId,
+      if (colorId != null) 'colorId': colorId,
+      'talla': talla,
+      'delta': delta,
+    });
+    return InventarioItemModel.fromJson(response.data);
+  }
 }
 
 final inventarioService = InventarioService();

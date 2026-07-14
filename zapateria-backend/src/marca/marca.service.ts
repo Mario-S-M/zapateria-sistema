@@ -50,20 +50,48 @@ export class MarcaService {
       ...this.buildPatronFields(patronSegmentos),
     });
 
-    return this.marcaRepository.save(marca);
+    try {
+      return await this.marcaRepository.save(marca);
+    } catch (error) {
+      this.handleUniqueConstraintError(error);
+    }
   }
 
   async update(id: string, updateMarcaDto: UpdateMarcaDto): Promise<Marca> {
     const marca = await this.findOne(id);
     const { patronSegmentos, ...marcaData } = updateMarcaDto;
 
-    Object.assign(marca, marcaData);
+    // Los campos opcionales del DTO quedan como `undefined` explícito (no
+    // ausentes) por las semánticas de class fields de TS; Object.assign sí
+    // copia claves `undefined`, así que hay que filtrarlas para no borrar
+    // valores ya cargados de la entidad cuando el cliente no los envía.
+    for (const [key, value] of Object.entries(marcaData)) {
+      if (value !== undefined) {
+        (marca as unknown as Record<string, unknown>)[key] = value;
+      }
+    }
 
     if (patronSegmentos !== undefined) {
       Object.assign(marca, this.buildPatronFields(patronSegmentos));
     }
 
-    return this.marcaRepository.save(marca);
+    try {
+      return await this.marcaRepository.save(marca);
+    } catch (error) {
+      this.handleUniqueConstraintError(error);
+    }
+  }
+
+  private handleUniqueConstraintError(error: unknown): never {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: string }).code === '23505'
+    ) {
+      throw new BadRequestException('Ya existe una marca con ese nombre');
+    }
+    throw error;
   }
 
   async remove(id: string): Promise<void> {

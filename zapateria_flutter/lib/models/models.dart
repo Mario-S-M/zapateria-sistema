@@ -92,9 +92,9 @@ extension SegmentoTipoExt on SegmentoTipo {
 
   String get label {
     switch (this) {
-      case SegmentoTipo.fijo: return 'Fijo (marca)';
+      case SegmentoTipo.fijo: return 'Marca';
       case SegmentoTipo.modelo: return 'Modelo';
-      case SegmentoTipo.lote: return 'Lote (ignorar)';
+      case SegmentoTipo.lote: return 'Lote';
       case SegmentoTipo.talla: return 'Talla';
     }
   }
@@ -104,11 +104,15 @@ class BarcodeSegmentoModel {
   final SegmentoTipo tipo;
   final int inicio;
   final int longitud;
+  // Solo aplica a tipo == talla: indica que el número trae un decimal
+  // implícito (ej. "265" en el código representa la talla 26.5).
+  final bool decimalImplicito;
 
   BarcodeSegmentoModel({
     required this.tipo,
     required this.inicio,
     required this.longitud,
+    this.decimalImplicito = false,
   });
 
   factory BarcodeSegmentoModel.fromJson(Map<String, dynamic> json) {
@@ -116,6 +120,7 @@ class BarcodeSegmentoModel {
       tipo: SegmentoTipoExt.fromApi(json['tipo'] as String),
       inicio: json['inicio'] as int,
       longitud: json['longitud'] as int,
+      decimalImplicito: json['decimalImplicito'] as bool? ?? false,
     );
   }
 
@@ -123,6 +128,7 @@ class BarcodeSegmentoModel {
     'tipo': tipo.apiValue,
     'inicio': inicio,
     'longitud': longitud,
+    'decimalImplicito': decimalImplicito,
   };
 }
 

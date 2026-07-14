@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:zapateria_flutter/components/barcode_scanner_widget.dart';
 import 'package:zapateria_flutter/models/models.dart';
 
 const Map<SegmentoTipo, Color> segmentoColor = {
@@ -20,14 +21,33 @@ String computeCodigoNormalizado(List<BarcodeSegmentoModel> segmentos, String cod
   return buffer.toString();
 }
 
+/// Extrae el texto literal del segmento `fijo` (la marca tal como aparece
+/// impresa en el código de barras), para sugerir el nombre de la marca.
+String extractMarcaLiteral(List<BarcodeSegmentoModel> segmentos, String codigo) {
+  final buffer = StringBuffer();
+  for (final s in segmentos) {
+    if (s.tipo != SegmentoTipo.fijo) continue;
+    if (s.inicio + s.longitud > codigo.length) return '';
+    buffer.write(codigo.substring(s.inicio, s.inicio + s.longitud));
+  }
+  return buffer.toString().trim();
+}
+
 /// Extrae la talla del segmento `talla` de [segmentos] aplicado sobre [codigo].
+/// Si el segmento tiene `decimalImplicito`, el número se divide entre 10
+/// (ej. "265" → 26.5).
 double? extractTalla(List<BarcodeSegmentoModel> segmentos, String codigo) {
   final tallaSeg = segmentos.where((s) => s.tipo == SegmentoTipo.talla).firstOrNull;
   if (tallaSeg == null) return null;
   if (tallaSeg.inicio + tallaSeg.longitud > codigo.length) return null;
   final str = codigo.substring(tallaSeg.inicio, tallaSeg.inicio + tallaSeg.longitud);
-  return double.tryParse(str);
+  final raw = double.tryParse(str);
+  if (raw == null) return null;
+  return tallaSeg.decimalImplicito ? raw / 10 : raw;
 }
+
+String formatTalla(double talla) =>
+    talla % 1 == 0 ? talla.toStringAsFixed(0) : talla.toStringAsFixed(1);
 
 extension _FirstOrNull<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;
@@ -213,19 +233,69 @@ class _BarcodePatternBuilderState extends State<BarcodePatternBuilder> {
     _notify();
   }
 
+  void _toggleDecimalImplicito(bool value) {
+    if (_segmentos.isEmpty || _segmentos.last.tipo != SegmentoTipo.talla) return;
+    setState(() {
+      final ultimo = _segmentos.last;
+      _segmentos = [
+        ..._segmentos.sublist(0, _segmentos.length - 1),
+        BarcodeSegmentoModel(
+          tipo: ultimo.tipo,
+          inicio: ultimo.inicio,
+          longitud: ultimo.longitud,
+          decimalImplicito: value,
+        ),
+      ];
+    });
+    _notify();
+  }
+
+  void _scanWithCamera() {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.95,
+          height: MediaQuery.of(context).size.width * 0.7,
+          child: BarcodeScannerWidget(
+            onScan: (code) {
+              Navigator.of(ctx).pop();
+              _codigoCtrl.text = code;
+              _onCodigoChanged(code);
+            },
+            onCancel: () => Navigator.of(ctx).pop(),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextFormField(
-          controller: _codigoCtrl,
-          decoration: const InputDecoration(
-            labelText: 'Código de barras de ejemplo',
-            helperText: 'Pega un código real de un producto de esta marca',
-            border: OutlineInputBorder(),
-          ),
-          onChanged: _onCodigoChanged,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextFormField(
+                controller: _codigoCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Código de barras de ejemplo',
+                  helperText: 'Pégalo o escanéalo con la cámara',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: _onCodigoChanged,
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.filled(
+              onPressed: _scanWithCamera,
+              icon: const Icon(Icons.qr_code_scanner),
+              tooltip: 'Escanear con cámara',
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         if (_codigo.isNotEmpty) ...[
@@ -256,6 +326,15 @@ class _BarcodePatternBuilderState extends State<BarcodePatternBuilder> {
             )
           else
             const Text('Patrón completo.', style: TextStyle(color: Colors.green)),
+          if (_tallaAsignada)
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text('El número de talla trae un decimal implícito'),
+              subtitle: const Text('Ej. el código trae "265" y la talla real es 26.5'),
+              value: _segmentos.last.decimalImplicito,
+              onChanged: _toggleDecimalImplicito,
+            ),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -270,11 +349,14 @@ class _BarcodePatternBuilderState extends State<BarcodePatternBuilder> {
           if (_esValido)
             Padding(
               padding: const EdgeInsets.only(top: 12),
-              child: Text(
-                'Vista previa: fijo+modelo="${computeCodigoNormalizado(_segmentos, _codigo)}"  '
-                'talla="${extractTalla(_segmentos, _codigo)?.toStringAsFixed(0)}"',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
+              child: Builder(builder: (context) {
+                final talla = extractTalla(_segmentos, _codigo);
+                return Text(
+                  'Vista previa: marca+modelo="${computeCodigoNormalizado(_segmentos, _codigo)}"  '
+                  'talla="${talla != null ? formatTalla(talla) : '?'}"',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                );
+              }),
             ),
         ],
       ],

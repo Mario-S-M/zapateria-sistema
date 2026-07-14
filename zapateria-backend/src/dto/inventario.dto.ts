@@ -1,4 +1,13 @@
-import { IsString, IsNumber, IsOptional, IsArray, ValidateNested, Min } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsArray,
+  IsInt,
+  ValidateNested,
+  Min,
+  Max,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class InventarioItemDto {
@@ -23,4 +32,22 @@ export class BulkUpsertInventarioDto {
   @ValidateNested({ each: true })
   @Type(() => InventarioItemDto)
   items: InventarioItemDto[];
+}
+
+export class IncrementInventarioDto {
+  @IsString()
+  zapatoId: string;
+
+  @IsOptional()
+  @IsString()
+  colorId?: string;
+
+  @IsNumber()
+  @Min(0)
+  talla: number;
+
+  @IsInt()
+  @Min(-1000)
+  @Max(1000)
+  delta: number;
 }

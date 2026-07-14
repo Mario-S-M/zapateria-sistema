@@ -14,6 +14,7 @@ import 'package:zapateria_flutter/components/color_circle.dart';
 import 'package:zapateria_flutter/components/image_picker_component.dart';
 import 'package:zapateria_flutter/components/inversionista_form.dart';
 import 'package:zapateria_flutter/components/barcode_scanner_widget.dart';
+import 'package:zapateria_flutter/utils/error_utils.dart';
 
 const _uuid = Uuid();
 
@@ -199,7 +200,9 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -331,26 +334,27 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
           ),
           if (marcaSeleccionada != null) ...[
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _codigoEjemploZapatoController,
-              decoration: const InputDecoration(
-                labelText: 'Código de barras de ejemplo de ESTE zapato',
-                helperText: 'Pega un código físico real de este zapato/color/talla',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (v) => setState(() {
-                final codigo = v.trim();
-                if (codigo.isEmpty) {
-                  _codigoNormalizadoActual = _selectedMarcaId == widget.zapato?.marcaId
-                      ? widget.zapato?.codigoNormalizado
-                      : null;
-                } else if (codigo.length != marcaSeleccionada.patronLongitud) {
-                  _codigoNormalizadoActual = null;
-                } else {
-                  _codigoNormalizadoActual =
-                      computeCodigoNormalizado(marcaSeleccionada.patronSegmentos!, codigo);
-                }
-              }),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _codigoEjemploZapatoController,
+                    decoration: const InputDecoration(
+                      labelText: 'Código de barras de ejemplo de ESTE zapato',
+                      helperText: 'Pega un código físico real de este zapato/color/talla',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (v) => _actualizarCodigoNormalizado(v, marcaSeleccionada),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: () => _showScannerParaCodigoEjemplo(context, marcaSeleccionada),
+                  icon: const Icon(Icons.qr_code_scanner),
+                  tooltip: 'Escanear con cámara',
+                ),
+              ],
             ),
             const SizedBox(height: 4),
             if (longitudInvalida)
@@ -1371,6 +1375,44 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
+
+  void _actualizarCodigoNormalizado(String v, MarcaModel marcaSeleccionada) {
+    setState(() {
+      final codigo = v.trim();
+      if (codigo.isEmpty) {
+        _codigoNormalizadoActual = _selectedMarcaId == widget.zapato?.marcaId
+            ? widget.zapato?.codigoNormalizado
+            : null;
+      } else if (codigo.length != marcaSeleccionada.patronLongitud) {
+        _codigoNormalizadoActual = null;
+      } else {
+        _codigoNormalizadoActual =
+            computeCodigoNormalizado(marcaSeleccionada.patronSegmentos!, codigo);
+      }
+    });
+  }
+
+  void _showScannerParaCodigoEjemplo(BuildContext context, MarcaModel marcaSeleccionada) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.95,
+          height: MediaQuery.of(context).size.width * 0.7,
+          child: BarcodeScannerWidget(
+            onScan: (code) {
+              if (mounted) {
+                _codigoEjemploZapatoController.text = code;
+                _actualizarCodigoNormalizado(code, marcaSeleccionada);
+                Navigator.of(ctx).pop();
+              }
+            },
+            onCancel: () => Navigator.of(ctx).pop(),
+          ),
+        ),
+      ),
+    );
+  }
 
   void _showScanner(BuildContext context) {
     showDialog(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:zapateria_flutter/components/barcode_pattern_builder.dart';
 import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/services/marca_service.dart';
+import 'package:zapateria_flutter/utils/error_utils.dart';
 
 class MarcasScreen extends StatefulWidget {
   const MarcasScreen({super.key});
@@ -187,6 +188,8 @@ class _MarcaFormScreenState extends State<_MarcaFormScreen> {
   List<BarcodeSegmentoModel> _segmentos = [];
   bool _patronValido = false;
   bool _saving = false;
+  bool _nombreEditadoManualmente = false;
+  bool _autoAsignandoNombre = false;
 
   @override
   void initState() {
@@ -195,6 +198,31 @@ class _MarcaFormScreenState extends State<_MarcaFormScreen> {
     _codigoEjemplo = widget.existing?.codigoEjemplo ?? '';
     _segmentos = List.of(widget.existing?.patronSegmentos ?? const []);
     _patronValido = _segmentos.isNotEmpty;
+    // Si ya existe una marca, respeta el nombre que el vendedor le puso;
+    // solo se auto-sugiere el nombre para marcas nuevas sin tocar aún.
+    _nombreEditadoManualmente = widget.existing != null;
+    _nombreCtrl.addListener(() {
+      if (_autoAsignandoNombre) return;
+      _nombreEditadoManualmente = true;
+    });
+  }
+
+  void _onPatronChanged(
+    String codigo,
+    List<BarcodeSegmentoModel> segmentos,
+    bool esValido,
+  ) {
+    _codigoEjemplo = codigo;
+    _segmentos = segmentos;
+    _patronValido = esValido;
+    if (!_nombreEditadoManualmente) {
+      final sugerido = extractMarcaLiteral(segmentos, codigo);
+      if (sugerido.isNotEmpty && sugerido != _nombreCtrl.text) {
+        _autoAsignandoNombre = true;
+        _nombreCtrl.text = sugerido;
+        _autoAsignandoNombre = false;
+      }
+    }
   }
 
   @override
@@ -227,7 +255,7 @@ class _MarcaFormScreenState extends State<_MarcaFormScreen> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(e))));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -261,6 +289,9 @@ class _MarcaFormScreenState extends State<_MarcaFormScreen> {
                     controller: _nombreCtrl,
                     decoration: const InputDecoration(
                       labelText: 'Nombre de la marca *',
+                      helperText:
+                          'Se sugiere solo al etiquetar el segmento "Marca" del código; '
+                          'puedes escribirlo tú si prefieres.',
                       border: OutlineInputBorder(),
                     ),
                     validator: (v) =>
@@ -274,19 +305,16 @@ class _MarcaFormScreenState extends State<_MarcaFormScreen> {
                   const SizedBox(height: 4),
                   Text(
                     'Define esto solo si esta marca imprime códigos de barras que '
-                    'varían por lote. Pega un ejemplo y toca hasta dónde llega cada '
-                    'parte: fijo, modelo, lote (se ignora) y talla (siempre al final).',
+                    'varían por lote. Pega un ejemplo (o escanéalo con la cámara) y '
+                    'toca hasta dónde llega cada parte: marca, modelo, lote y talla '
+                    '(siempre al final).',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 12),
                   BarcodePatternBuilder(
                     initialCodigoEjemplo: _codigoEjemplo,
                     initialSegmentos: _segmentos,
-                    onChanged: (codigo, segmentos, esValido) {
-                      _codigoEjemplo = codigo;
-                      _segmentos = segmentos;
-                      _patronValido = esValido;
-                    },
+                    onChanged: _onPatronChanged,
                   ),
                 ],
               ),

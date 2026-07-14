@@ -24,6 +24,10 @@ export class BarcodeSegmentoDto {
   @IsInt()
   @Min(1)
   longitud: number;
+
+  @IsOptional()
+  @IsBoolean()
+  decimalImplicito?: boolean;
 }
 
 export class CreateMarcaDto {

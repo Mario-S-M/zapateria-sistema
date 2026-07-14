@@ -94,8 +94,9 @@ export class ZapatoService {
         tallaSegmento.inicio,
         tallaSegmento.inicio + tallaSegmento.longitud,
       );
-      const talla = parseFloat(tallaStr);
-      if (isNaN(talla)) continue;
+      const tallaRaw = parseFloat(tallaStr);
+      if (isNaN(tallaRaw)) continue;
+      const talla = tallaSegmento.decimalImplicito ? tallaRaw / 10 : tallaRaw;
 
       const zapato = await this.zapatoRepository.findOne({
         where: { marcaId: marca.id, codigoNormalizado },

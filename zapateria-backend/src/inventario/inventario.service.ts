@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { Inventario } from '../entities/inventario.entity';
@@ -23,7 +23,11 @@ export class InventarioService {
     });
   }
 
-  async getStock(zapatoId: string, colorId: string | null, talla: number): Promise<number> {
+  async getStock(
+    zapatoId: string,
+    colorId: string | null,
+    talla: number,
+  ): Promise<number> {
     const item = await this.repo.findOne({
       where: { zapatoId, colorId: colorId ?? IsNull(), talla },
     });
@@ -53,7 +57,38 @@ export class InventarioService {
     }
   }
 
-  async decrement(zapatoId: string, colorId: string | null, talla: number, cantidad: number): Promise<void> {
+  async increment(
+    zapatoId: string,
+    colorId: string | null,
+    talla: number,
+    delta: number,
+  ): Promise<Inventario> {
+    const existing = await this.repo.findOne({
+      where: { zapatoId, colorId: colorId ?? IsNull(), talla },
+    });
+    if (existing) {
+      existing.cantidad = Math.max(0, existing.cantidad + delta);
+      return this.repo.save(existing);
+    }
+    if (delta <= 0) {
+      throw new NotFoundException(
+        'No existing stock to adjust for this zapato/color/talla',
+      );
+    }
+    const newItem = this.repo.create();
+    newItem.zapatoId = zapatoId;
+    newItem.colorId = colorId ?? undefined;
+    newItem.talla = talla;
+    newItem.cantidad = delta;
+    return this.repo.save(newItem);
+  }
+
+  async decrement(
+    zapatoId: string,
+    colorId: string | null,
+    talla: number,
+    cantidad: number,
+  ): Promise<void> {
     const item = await this.repo.findOne({
       where: { zapatoId, colorId: colorId ?? IsNull(), talla },
     });

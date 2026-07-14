@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/services/inventario_service.dart';
 import 'package:zapateria_flutter/components/color_circle.dart';
+import 'package:zapateria_flutter/screens/scan_inventario_screen.dart';
 import 'package:zapateria_flutter/utils/talla_converter.dart';
 
 class InventarioScreen extends StatefulWidget {
@@ -121,6 +122,63 @@ class _InventarioScreenState extends State<InventarioScreen> {
     }
   }
 
+  Future<void> _openScanLoop() async {
+    String? colorId;
+    String? colorNombre;
+    if (_colores.isNotEmpty) {
+      final picked = await _pickColorForScan();
+      if (picked == null || !mounted) return;
+      colorId = picked.colorId;
+      colorNombre = picked.color.nombre;
+    }
+
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ScanInventarioScreen(
+          zapato: widget.zapato,
+          colorId: colorId,
+          colorNombre: colorNombre,
+        ),
+      ),
+    );
+    if (changed == true && mounted) {
+      await _loadInventario();
+    }
+  }
+
+  Future<ZapatoColorModel?> _pickColorForScan() {
+    return showDialog<ZapatoColorModel>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Qué color vas a registrar?'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: _colores.map((zc) {
+              return GestureDetector(
+                onTap: () => Navigator.pop(ctx, zc),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ColorCircle(color: zc.color, size: 40),
+                    const SizedBox(height: 4),
+                    Text(zc.color.nombre, style: const TextStyle(fontSize: 11)),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -137,6 +195,15 @@ class _InventarioScreenState extends State<InventarioScreen> {
           ],
         ),
         actions: [
+          if (widget.zapato.marcaId != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: IconButton.filledTonal(
+                onPressed: _openScanLoop,
+                icon: const Icon(Icons.qr_code_scanner),
+                tooltip: 'Escanear para registrar stock',
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: FilledButton.icon(
