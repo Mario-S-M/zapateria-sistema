@@ -1,0 +1,43 @@
+name: Agregar tarjeta al kanban por issue nuevo
+
+# Se dispara cuando se abre un issue en este repo (zapateria-sistema).
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  add-card:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repo de documentación (zapateria-docs)
+        uses: actions/checkout@v4
+        with:
+          repository: Mario-S-M/zapateria-docs
+          token: ${{ secrets.DOCS_REPO_TOKEN }}
+          path: docs-repo
+
+      - name: Checkout de este repo (para usar el script)
+        uses: actions/checkout@v4
+        with:
+          path: code-repo
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Agregar tarjeta en "Por hacer"
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          KANBAN_PATH: docs-repo/Kanban.md
+        run: node code-repo/scripts/add-kanban-card.mjs
+
+      - name: Commit y push al repo de docs
+        working-directory: docs-repo
+        run: |
+          git config user.name "kanban-bot"
+          git config user.email "kanban-bot@users.noreply.github.com"
+          git add Kanban.md
+          git diff --cached --quiet || git commit -m "Agrega tarjeta para issue #${{ github.event.issue.number }}"
+          git push
