@@ -46,13 +46,13 @@ class _InventarioScreenState extends State<InventarioScreen> {
     for (final zc in _colores) {
       _controllers[zc.colorId] = {};
       for (final t in tallas) {
-        _controllers[zc.colorId]![t] = TextEditingController(text: '1');
+        _controllers[zc.colorId]![t] = TextEditingController(text: '0');
       }
     }
     if (_colores.isEmpty) {
       _controllers['__none__'] = {};
       for (final t in tallas) {
-        _controllers['__none__']![t] = TextEditingController(text: '1');
+        _controllers['__none__']![t] = TextEditingController(text: '0');
       }
     }
   }
