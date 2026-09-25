@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Mueve tarjetas en el Kanban.md (formato del plugin "Kanban" de Obsidian)
 // según el estado de un Pull Request.
+// (Comentario de prueba: validación del flujo E2E de kanban-sync)
 //
 // Convención: cada tarjeta debe incluir el número del issue que resuelve,
 // ej. "- [ ] #12 Implementar login de administrador". El PR debe referenciar
