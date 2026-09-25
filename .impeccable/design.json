@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-25T19:45:00Z",
+  "title": "Design System: Zapatería La Prodigiosa",
+  "platform": "android",
+  "note": "Proyecto Flutter nativo (Android principal, iOS/web secundarios) — no un proyecto web, así que el panel de vista previa en navegador (HTML/CSS shadow DOM) no aplica aquí. Este sidecar omite el arreglo `components` con snippets HTML/CSS por esa razón; los componentes reales están documentados en prosa en DESIGN.md.",
+  "extensions": {
+    "colorMeta": {
+      "tinta-carbon": { "role": "primary", "displayName": "Tinta Carbón", "canonical": "rgba(0,0,0,0.87)" },
+      "azul-trabajo": {
+        "role": "secondary",
+        "displayName": "Azul Trabajo",
+        "canonical": "#2196F3",
+        "tonalRamp": ["#0D47A1", "#1565C0", "#1976D2", "#1E88E5", "#2196F3", "#42A5F5", "#64B5F6", "#90CAF9", "#BBDEFB", "#E3F2FD"]
+      },
+      "papel": {
+        "role": "neutral",
+        "displayName": "Papel",
+        "canonical": "#FFFFFF",
+        "tonalRamp": ["#212121", "#424242", "#616161", "#757575", "#9E9E9E", "#BDBDBD", "#E0E0E0", "#EEEEEE", "#F5F5F5", "#FAFAFA", "#FFFFFF"]
+      },
+      "fondo-neutro": { "role": "neutral", "displayName": "Fondo Neutro", "canonical": "#F5F5F5" },
+      "contenedor-azul": { "role": "neutral", "displayName": "Contenedor Azul", "canonical": "#E3F2FD" },
+      "borde-neutro": { "role": "neutral", "displayName": "Borde Neutro", "canonical": "#E0E0E0" }
+    },
+    "typographyMeta": {
+      "headline-large": { "displayName": "Headline Large", "purpose": "Títulos de pantalla principales." },
+      "title-large": { "displayName": "Title Large", "purpose": "Títulos de lista/ítem destacado." },
+      "body-large": { "displayName": "Body Large", "purpose": "Texto de contenido principal." }
+    },
+    "shadows": [],
+    "motion": [],
+    "breakpoints": [
+      { "name": "compact-to-expanded", "value": "definido por kIsWeb en MainShell, no por ancho de pantalla (bottom nav en móvil, rail en web)" }
+    ]
+  },
+  "components": [],
+  "narrative": {
+    "northStar": "El Cuaderno de Ventas",
+    "overview": "La interfaz se comporta como una libreta de ventas bien llevada: plana, legible de un vistazo, sin decoración que no ayude a cerrar la venta rápido. El tono es cálido pero profesional — Material Design estándar de Android, sin capas de personalidad de marca todavía, pero tampoco frío ni corporativo.",
+    "keyCharacteristics": [
+      "Material Design 3 estándar en Android, sin adaptación nativa por plataforma",
+      "Acento azul único (Azul Trabajo) para interacción y selección",
+      "Tipografía Roboto por roles, sin variación de marca",
+      "Modo claro y oscuro completamente definidos y simétricos"
+    ],
+    "rules": [
+      { "name": "La Regla del Acento Único", "body": "Solo existe un color de interacción (Azul Trabajo). No se introduce un segundo o tercer acento sin una razón funcional clara.", "section": "colors" },
+      { "name": "La Regla de lo Plano", "body": "Ninguna superficie usa sombra para transmitir jerarquía. La separación viene de color de fondo o de un borde de 1px.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do mantener el acento azul único para toda interacción/selección.",
+      "Do priorizar botones y campos grandes, fáciles de tocar rápido en el mostrador.",
+      "Do mover las tarjetas a plano en la próxima pasada de implementación.",
+      "Do mantener paridad completa entre modo claro y oscuro."
+    ],
+    "donts": [
+      "Don't agregar sombras, glassmorphism, o efectos decorativos.",
+      "Don't animar de forma llamativa transiciones de uso frecuente.",
+      "Don't inventar una identidad de marca sin que el negocio la defina."
+    ]
+  }
+}
