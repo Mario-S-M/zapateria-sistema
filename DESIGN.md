@@ -170,10 +170,11 @@ En modo oscuro la sombra no puede ser negra pura sobre un fondo ya casi
 negro — usa un tono que sigue leyéndose contra `Fondo` oscuro (ver
 `NeoTheme.shadow` en el código).
 
-Los `Card` de Material que no migraron a `NeoCard` (pantallas fuera de
-`zapatos_screen.dart`) heredan `CardThemeData`: plano (`elevation: 0`) +
-borde de 2px — mismo lenguaje de borde, sin la sombra dura extra. Es una
-versión "quieta" del mismo sistema, no una inconsistencia: ver Components.
+Todas las tarjetas de la app usan `NeoCard` (no solo `zapatos_screen.dart`)
+— no queda ningún `Card` de Material plano sin la sombra dura. El
+`CardThemeData` global se mantiene como red de seguridad para cualquier
+`Card` nuevo que se agregue sin usar `NeoCard` explícitamente, pero ya no
+es el tratamiento por defecto real de ninguna pantalla existente.
 
 ### Named Rules
 **La Regla de la Sombra Dura.** (repetida de Colors — aplica aquí
@@ -182,8 +183,9 @@ literalmente al valor de `boxShadow`.)
 ## Shapes
 
 Radios más generosos que la versión Material anterior: `10px` (botones,
-campos, chips), `16px` (tarjetas vía `CardThemeData` global), `20px`
-(`NeoCard` en `zapatos_screen.dart`, el tratamiento más completo).
+campos, chips), `20px` (`NeoCard`, en toda tarjeta de la app). La navbar
+móvil (dock flotante) también usa 20px para sentirse parte del mismo
+sistema que las tarjetas.
 
 ## Components
 
@@ -194,22 +196,22 @@ campos, chips), `16px` (tarjetas vía `CardThemeData` global), `20px`
 - **FAB:** mismo tratamiento — fondo `Acento`, borde `Tinta`.
 
 ### Cards / Containers
-Dos niveles de tratamiento, ambos parte del mismo sistema:
-- **`NeoCard`** (`zapatos_screen.dart`): borde 2px + sombra dura offset —
-  el tratamiento completo, "sticker".
-- **`CardThemeData` global** (resto de pantallas): borde 2px, radio 16px,
-  `elevation: 0`, sin sombra dura — versión plana del mismo lenguaje.
-  Migrar una pantalla a `NeoCard` es una mejora válida, no un requisito.
+- **`NeoCard`** (`lib/components/neo_style.dart`): borde 2px + sombra dura
+  offset — el único tratamiento de tarjeta en la app, en todas las
+  pantallas.
 
 ### Inputs / Fields
 - **Style:** relleno `Papel`, borde 2px `Tinta`, radio 14px.
 - **Focus:** borde `Acento`, grosor 3px.
 
 ### Navigation
-- **Mobile:** `BottomNavigationBar`, ítem seleccionado en `Tinta`, peso
-  800.
-- **Web/tablet:** `NavigationRail`, indicador `Acento` sólido (antes era
-  un contenedor pastel — ahora es el acento saturado completo).
+- **Mobile:** dock flotante — `NavigationBar` (Material 3) dentro de un
+  `Container` con margen, esquinas de 20px, borde 2px y sombra dura, igual
+  que una `NeoCard`. Indicador del ítem seleccionado: píldora `Acento` con
+  borde `Tinta`.
+- **Web/tablet:** `NavigationRail`, indicador `Acento` con el mismo borde
+  bordeado, y una sombra dura hacia el contenido (offset horizontal) en el
+  borde derecho del rail.
 
 ### Chips / Badges
 - Chips genéricos (filtros, categorías): borde 1.5px `Tinta`, fondo
