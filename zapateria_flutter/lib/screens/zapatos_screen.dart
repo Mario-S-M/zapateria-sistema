@@ -394,15 +394,21 @@ class _ZapatosScreenState extends State<ZapatosScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: TextField(
-              decoration: const InputDecoration(
-                hintText: 'Buscar por nombre, modelo o código...',
-                prefixIcon: Icon(Icons.search),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [BoxShadow(color: NeoTheme.of(context).shadow, offset: const Offset(4, 4), blurRadius: 0)],
               ),
-              onChanged: (v) {
-                setState(() => _searchQuery = v);
-                _applyFilter();
-              },
+              child: TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Buscar por nombre, modelo o código...',
+                  prefixIcon: Icon(Icons.search),
+                ),
+                onChanged: (v) {
+                  setState(() => _searchQuery = v);
+                  _applyFilter();
+                },
+              ),
             ),
           ),
           if (_hasActiveFilters)
@@ -451,12 +457,13 @@ class _ZapatosScreenState extends State<ZapatosScreen> {
   }
 
   Widget _buildPaginator(ThemeData theme) {
+    final t = NeoTheme.of(context);
     final pages = _buildPageNumbers();
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(top: BorderSide(color: theme.dividerColor)),
+        color: t.paper,
+        border: Border(top: BorderSide(color: t.ink, width: 2)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -614,30 +621,40 @@ class _PageButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = selected ? theme.colorScheme.primary : theme.colorScheme.onSurface;
+    final t = NeoTheme.of(context);
+    final borderColor = enabled ? t.ink : t.ink.withOpacity(0.25);
+    final fg = enabled ? t.ink : t.ink.withOpacity(0.35);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 3),
       child: SizedBox(
         width: 36,
         height: 36,
-        child: Material(
-          color: selected ? theme.colorScheme.primary.withOpacity(0.12) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: enabled ? onTap : null,
-            child: Center(
-              child: icon != null
-                  ? Icon(icon, size: 18, color: enabled ? color : theme.disabledColor)
-                  : Text(
-                      label!,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                        color: enabled ? color : theme.disabledColor,
+        child: Container(
+          decoration: BoxDecoration(
+            color: selected ? NeoColors.accent : t.paper,
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: borderColor, width: 2),
+            boxShadow: selected
+                ? [BoxShadow(color: t.shadow, offset: const Offset(2, 2), blurRadius: 0)]
+                : null,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(9),
+              onTap: enabled ? onTap : null,
+              child: Center(
+                child: icon != null
+                    ? Icon(icon, size: 18, color: fg)
+                    : Text(
+                        label!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                          color: fg,
+                        ),
                       ),
-                    ),
+              ),
             ),
           ),
         ),
