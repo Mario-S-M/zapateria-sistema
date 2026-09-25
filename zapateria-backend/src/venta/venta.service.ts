@@ -20,8 +20,11 @@ export class VentaService {
     private inventarioRepository: Repository<Inventario>,
   ) {}
 
-  async findAll(): Promise<Venta[]> {
-    return this.ventaRepository.find({
+  async findAll(
+    page = 1,
+    limit = 12,
+  ): Promise<{ data: Venta[]; total: number; page: number; totalPages: number }> {
+    const [data, total] = await this.ventaRepository.findAndCount({
       relations: [
         'inversionista',
         'items',
@@ -30,7 +33,10 @@ export class VentaService {
         'items.zapato.colores.color',
       ],
       order: { fecha: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    return { data, total, page, totalPages: Math.max(1, Math.ceil(total / limit)) };
   }
 
   async findOne(id: string): Promise<Venta | null> {

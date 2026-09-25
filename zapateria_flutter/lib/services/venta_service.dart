@@ -5,9 +5,18 @@ import 'api_client.dart';
 class VentaService {
   final Dio _dio = apiClient.dio;
 
-  Future<List<VentaModel>> getAll() async {
-    final response = await _dio.get('/ventas');
-    return (response.data as List).map((j) => VentaModel.fromJson(j)).toList();
+  Future<VentaPage> getAll({int page = 1, int limit = 12}) async {
+    final response = await _dio.get('/ventas', queryParameters: {
+      'page': page,
+      'limit': limit,
+    });
+    final json = response.data as Map<String, dynamic>;
+    return VentaPage(
+      data: (json['data'] as List).map((j) => VentaModel.fromJson(j)).toList(),
+      total: json['total'] as int,
+      page: json['page'] as int,
+      totalPages: json['totalPages'] as int,
+    );
   }
 
   Future<VentaModel> getOne(String id) async {
@@ -132,6 +141,15 @@ class VentaUpdateDto {
       if (items != null) 'items': items!.map((i) => i.toJson()).toList(),
     };
   }
+}
+
+class VentaPage {
+  final List<VentaModel> data;
+  final int total;
+  final int page;
+  final int totalPages;
+
+  VentaPage({required this.data, required this.total, required this.page, required this.totalPages});
 }
 
 final ventaService = VentaService();

@@ -43,8 +43,12 @@ class VentasScreen extends StatefulWidget {
 }
 
 class _VentasScreenState extends State<VentasScreen> {
+  static const int _perPage = 12;
+
   List<VentaModel> _ventas = [];
   bool _loading = true;
+  int _page = 0;
+  int _totalPages = 1;
 
   @override
   void initState() {
@@ -55,12 +59,25 @@ class _VentasScreenState extends State<VentasScreen> {
   Future<void> _loadVentas() async {
     setState(() => _loading = true);
     try {
-      _ventas = await ventaService.getAll();
+      final result = await ventaService.getAll(page: _page + 1, limit: _perPage);
+      _ventas = result.data;
+      _totalPages = result.totalPages;
+      // Si la página quedó vacía (ej. se borró el último item de la última
+      // página), retrocede una página en vez de mostrar una lista vacía.
+      if (_ventas.isEmpty && _page > 0) {
+        _page -= 1;
+        return _loadVentas();
+      }
     } catch (e) {
       debugPrint('Error: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _goToPage(int page) {
+    setState(() => _page = page);
+    _loadVentas();
   }
 
   void _editVenta(BuildContext context, VentaModel venta) {
@@ -103,6 +120,9 @@ class _VentasScreenState extends State<VentasScreen> {
               ),
             )
           : body,
+      bottomNavigationBar: (!_loading && _totalPages > 1)
+          ? NeoPaginator(page: _page, totalPages: _totalPages, onPageChanged: _goToPage)
+          : null,
     );
   }
 

@@ -18,8 +18,11 @@ export class VentaController {
   constructor(private readonly ventaService: VentaService) {}
 
   @Get()
-  findAll() {
-    return this.ventaService.findAll();
+  findAll(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.ventaService.findAll(
+      page ? parseInt(page, 10) : undefined,
+      limit ? parseInt(limit, 10) : undefined,
+    );
   }
 
   @Get('reporte/cierre-caja')

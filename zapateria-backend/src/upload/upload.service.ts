@@ -3,6 +3,7 @@ import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
 import * as path from 'path';
+import sharp from 'sharp';
 
 @Injectable()
 export class UploadService {
@@ -22,26 +23,44 @@ export class UploadService {
     }
   }
 
+  // Lado más largo al que se redimensiona toda foto subida. Una foto de
+  // cámara/celular sin procesar puede pesar varios MB a resolución completa;
+  // en la app nunca se muestra más grande que una tarjeta o el lightbox, así
+  // que no hay razón para servir (ni para que el cliente descargue) más de
+  // esto. Baja el peso típico de MBs a cientos de KB.
+  private readonly maxDimension = 1600;
+  private readonly jpegQuality = 82;
+
   async saveZapatoImage(file: Express.Multer.File): Promise<string> {
     this.validateFile(file);
 
-    const fileExtension = extname(file.originalname).toLowerCase();
-    const fileName = `${uuidv4()}${fileExtension}`;
+    // Siempre se guarda como .jpg: reencodear a un formato/calidad
+    // consistente es lo que realmente baja el peso, sin importar el
+    // formato de origen (jpg/png/webp).
+    const fileName = `${uuidv4()}.jpg`;
     const filePath = path.join(this.uploadPath, fileName);
     const fullPath = path.join(process.cwd(), filePath);
 
     try {
-      console.log(`[Upload] Intentando guardar imagen en: ${fullPath}`);
-      console.log(`[Upload] Tamaño del archivo: ${file.buffer?.length} bytes`);
-      console.log(`[Upload] CWD: ${process.cwd()}`);
-      
-      // Asegurar que el directorio existe
+      console.log(`[Upload] Tamaño original: ${file.buffer?.length} bytes`);
+
+      const processed = await sharp(file.buffer)
+        .rotate() // aplica la orientación EXIF antes de descartar metadata
+        .resize({
+          width: this.maxDimension,
+          height: this.maxDimension,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality: this.jpegQuality })
+        .toBuffer();
+
+      console.log(`[Upload] Tamaño tras redimensionar/comprimir: ${processed.length} bytes`);
+
       this.ensureUploadDirectory();
-      
-      // Guardar archivo
-      fs.writeFileSync(fullPath, file.buffer);
+      fs.writeFileSync(fullPath, processed);
       console.log(`[Upload] Imagen guardada exitosamente: ${fullPath}`);
-      
+
       // Retornar path relativo para la base de datos
       return filePath.replace(/\\/g, '/'); // Normalizar separadores para diferentes OS
     } catch (error) {
