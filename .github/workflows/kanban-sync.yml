@@ -33,7 +33,7 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
           PR_MERGED: ${{ github.event.pull_request.merged }}
           PR_ACTION: ${{ github.event.action }}
-          KANBAN_PATH: docs-repo/Zapateria-La-Prodigiosa/Kanban.md
+          KANBAN_PATH: docs-repo/Kanban.md
         run: node code-repo/scripts/sync-kanban.mjs
 
       - name: Commit y push al repo de docs
@@ -41,6 +41,6 @@ jobs:
         run: |
           git config user.name "kanban-bot"
           git config user.email "kanban-bot@users.noreply.github.com"
-          git add Zapateria-La-Prodigiosa/Kanban.md
+          git add Kanban.md
           git diff --cached --quiet || git commit -m "Actualiza kanban por PR #${{ github.event.pull_request.number }}"
           git push
