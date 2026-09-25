@@ -89,3 +89,38 @@ Standard NestJS feature-module layout. Each domain has its own folder with `modu
 ### Business config
 
 Static constants in `lib/config/business_config.dart`: business name, RFC, address, and warranty policy text printed on every ticket. Edit here to change receipt header/footer.
+
+## Documentación viva (Obsidian vault)
+
+Specs, arquitectura y decisiones técnicas de este proyecto viven en un repo git
+aparte (Obsidian vault), ruta local en esta máquina:
+`/Users/mario-e-s-m/Documents/Obsidian Vault/Zapateria-La-Prodigiosa/`
+(remoto: `Mario-S-M/zapateria-docs`, privado). Estructura: `01-Requerimientos/`
+(specs por feature), `02-Arquitectura/` (stack e infra), `03-Diagramas/`
+(Excalidraw), `04-Decisiones/` (ADRs), `Kanban.md` (tablero sincronizado con PRs
+de este repo vía `.github/workflows/kanban-sync.yml`).
+
+**Antes de implementar una feature ligada a un issue de GitHub (`#N`):**
+- Busca en `01-Requerimientos/*.md` un archivo cuyo campo `Issue de GitHub:` sea
+  `#N` (grep por el número, no asumas convención de nombre de archivo). Si existe,
+  léelo — ahí están los criterios de aceptación y notas técnicas ya decididas.
+- Revisa `04-Decisiones/` (ADRs) y `02-Arquitectura/00-Arquitectura-General.md`
+  por si la feature toca algo ya decidido, para no contradecirlo.
+
+**Al terminar una feature ligada a un issue:**
+- Si existe spec para ese issue, actualízalo: marca los criterios de aceptación
+  cumplidos, cambia `Estado` a `Hecho`, y agrega una nota breve en "Notas
+  técnicas" si la implementación real difirió de lo planeado.
+- Si no existía spec pero la feature es significativa, créalo en
+  `01-Requerimientos/` usando `00-Plantilla-Requerimiento.md` como base, nómbralo
+  `RF-<N>-slug-corto.md`.
+- Si tomaste una decisión técnica no trivial (librería, patrón, migración), crea
+  un ADR en `04-Decisiones/` con el siguiente número consecutivo, usando
+  `ADR-0001-migracion-flutter-a-react-native.md` como plantilla de formato.
+- Commitea y pushea esos cambios dentro del repo del vault — es un repo git
+  independiente de este (`zapateria-sistema`), no incluyas esos archivos en tus
+  commits de este repo.
+
+**Si la ruta del vault no existe** (otra máquina, CI, otro dev), sigue
+trabajando normalmente sin bloquear la tarea por esto — es un enriquecimiento de
+contexto, no un requisito.
