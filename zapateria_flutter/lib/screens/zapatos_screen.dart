@@ -12,6 +12,7 @@ import 'package:zapateria_flutter/services/inventario_service.dart';
 import 'package:zapateria_flutter/utils/talla_converter.dart';
 import 'package:zapateria_flutter/components/zapato_image.dart';
 import 'package:zapateria_flutter/components/color_circle.dart';
+import 'package:zapateria_flutter/components/neo_style.dart';
 import 'package:zapateria_flutter/services/categoria_service.dart';
 import 'package:zapateria_flutter/services/inversionista_service.dart';
 
@@ -394,12 +395,9 @@ class _ZapatosScreenState extends State<ZapatosScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: TextField(
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'Buscar por nombre, modelo o código...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest ?? Colors.grey[100],
+                prefixIcon: Icon(Icons.search),
               ),
               onChanged: (v) {
                 setState(() => _searchQuery = v);
@@ -427,7 +425,7 @@ class _ZapatosScreenState extends State<ZapatosScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showForm(context, null),
         icon: const Icon(Icons.add),
-        label: const Text('Nuevo'),
+        label: const Text('Nuevo', style: TextStyle(fontWeight: FontWeight.w800)),
       ),
       bottomNavigationBar: (!_loading && _error == null && _filtered.isNotEmpty && _totalPages > 1)
           ? _buildPaginator(theme)
@@ -675,8 +673,9 @@ class _ZapatoCard extends StatelessWidget {
       case TipoPrecio.inversionista: precio = zapato.precioCompra * 1.2; break;
     }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20, right: 4),
+      decoration: neoCardDecoration(context),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -684,47 +683,40 @@ class _ZapatoCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                SizedBox(
+                Container(
                   width: 80, height: 80,
-                  child: _ZapatoCarousel(fotos: _getEffectiveFotos(zapato)),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: NeoTheme.of(context).ink, width: 2),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: _ZapatoCarousel(fotos: _getEffectiveFotos(zapato), borderRadius: BorderRadius.zero),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(zapato.nombre, style: theme.textTheme.titleMedium),
+                      Text(zapato.nombre, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
                       Text(zapato.modelo, style: theme.textTheme.bodySmall),
-                      Text('\$${formatPrice(precio)}', style: theme.textTheme.titleMedium?.copyWith(color: Colors.green.shade700)),
+                      Text('\$${formatPrice(precio)}', style: theme.textTheme.titleMedium?.copyWith(color: Colors.green.shade700, fontWeight: FontWeight.w800)),
                     ],
                   ),
                 ),
               ],
             ),
-            const Divider(height: 1),
+            const SizedBox(height: 8),
+            Container(height: 2, color: NeoTheme.of(context).ink.withOpacity(0.08)),
             const SizedBox(height: 8),
             Row(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  tooltip: 'Editar',
-                  onPressed: onEdit,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.shopping_cart),
-                  tooltip: 'Carrito',
-                  onPressed: onAddToCart,
-                ),
+                NeoIconButton(icon: Icons.edit, tooltip: 'Editar', onTap: onEdit),
                 const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.inventory_2_outlined),
-                  tooltip: 'Inventario',
-                  onPressed: onInventario,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: onDelete,
-                ),
+                NeoIconButton(icon: Icons.shopping_cart, tooltip: 'Carrito', onTap: onAddToCart),
+                const SizedBox(width: 8),
+                NeoIconButton(icon: Icons.inventory_2_outlined, tooltip: 'Inventario', onTap: onInventario),
+                const SizedBox(width: 8),
+                NeoIconButton(icon: Icons.delete_outline, iconColor: Colors.red.shade700, onTap: onDelete),
               ],
             ),
             if (zapato.colores.isNotEmpty) ...[
@@ -782,10 +774,9 @@ class _ZapatoGridCard extends StatelessWidget {
       case TipoPrecio.inversionista: precio = zapato.precioCompra * 1.2; break;
     }
 
-    return Card(
+    return Container(
       clipBehavior: Clip.antiAlias,
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      decoration: neoCardDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

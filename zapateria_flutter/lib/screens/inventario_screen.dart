@@ -605,7 +605,6 @@ class _MobileColorAccordionState extends State<_MobileColorAccordion> {
     final theme = Theme.of(context);
     return Card(
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
         leading: widget.row.colorWidget,

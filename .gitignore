@@ -17,6 +17,7 @@ zapateria_flutter/android/build/
 zapateria_flutter/android/app/build/
 zapateria_flutter/ios/build/
 zapateria_flutter/.dart_tool/
+zapateria_flutter/android/local.properties
 
 # Backend build output
 zapateria-backend/dist/

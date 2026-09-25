@@ -166,8 +166,6 @@ class _VentaAccordion extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
         initiallyExpanded: false,
@@ -308,7 +306,13 @@ class _MobileTitle extends StatelessWidget {
         const SizedBox(height: 2),
         Row(
           children: [
-            Text(_formatDate(venta.fecha), style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
+            Flexible(
+              child: Text(
+                _formatDate(venta.fecha),
+                style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
             const SizedBox(width: 6),
             _TipoBadge(tipo: venta.tipoPrecioString),
           ],

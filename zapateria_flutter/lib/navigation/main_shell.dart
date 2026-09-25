@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:zapateria_flutter/components/neo_style.dart';
 import 'package:zapateria_flutter/screens/zapatos_screen.dart';
 import 'package:zapateria_flutter/screens/ventas_screen.dart';
 import 'package:zapateria_flutter/screens/cart_screen.dart';
@@ -50,31 +51,46 @@ class _MainShellState extends State<MainShell> {
 
   @override
   Widget build(BuildContext context) {
+    final t = NeoTheme.of(context);
+    final indicatorShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(10),
+      side: BorderSide(color: t.ink, width: 2),
+    );
+
     if (kIsWeb) {
       return Scaffold(
         body: Row(
           children: [
-            NavigationRail(
-              selectedIndex: _currentIndex,
-              onDestinationSelected: (i) => setState(() => _currentIndex = i),
-              extended: true,
-              minExtendedWidth: 180,
-              indicatorColor: Colors.blue.shade100,
-              selectedIconTheme: const IconThemeData(color: Colors.blue),
-              selectedLabelTextStyle: const TextStyle(
-                color: Colors.blue,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
+            Container(
+              decoration: BoxDecoration(
+                color: t.bg,
+                border: Border(right: BorderSide(color: t.ink, width: 2)),
               ),
-              destinations: List.generate(
-                _icons.length,
-                (i) => NavigationRailDestination(
-                  icon: Icon(_icons[i]),
-                  label: Text(_labels[i]),
+              child: NavigationRail(
+                selectedIndex: _currentIndex,
+                onDestinationSelected: (i) => setState(() => _currentIndex = i),
+                extended: true,
+                minExtendedWidth: 200,
+                backgroundColor: Colors.transparent,
+                indicatorColor: NeoColors.accent,
+                indicatorShape: indicatorShape,
+                selectedIconTheme: IconThemeData(color: t.ink),
+                unselectedIconTheme: IconThemeData(color: t.ink.withOpacity(0.4)),
+                selectedLabelTextStyle: TextStyle(
+                  color: t.ink,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+                unselectedLabelTextStyle: TextStyle(color: t.ink.withOpacity(0.6), fontSize: 14),
+                destinations: List.generate(
+                  _icons.length,
+                  (i) => NavigationRailDestination(
+                    icon: Icon(_icons[i]),
+                    label: Text(_labels[i]),
+                  ),
                 ),
               ),
             ),
-            const VerticalDivider(thickness: 1, width: 1),
             Expanded(
               child: IndexedStack(
                 index: _currentIndex,
@@ -91,15 +107,35 @@ class _MainShellState extends State<MainShell> {
         index: _currentIndex,
         children: _pages,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Theme.of(context).disabledColor,
-        items: List.generate(
-          _icons.length,
-          (i) => BottomNavigationBarItem(icon: Icon(_icons[i]), label: _labels[i]),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: t.paper,
+          border: Border(top: BorderSide(color: t.ink, width: 2)),
+        ),
+        child: SafeArea(
+          child: NavigationBar(
+            selectedIndex: _currentIndex,
+            onDestinationSelected: (i) => setState(() => _currentIndex = i),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            indicatorColor: NeoColors.accent,
+            indicatorShape: indicatorShape,
+            labelTextStyle: WidgetStateProperty.resolveWith(
+              (states) => TextStyle(
+                fontSize: 11,
+                fontWeight: states.contains(WidgetState.selected) ? FontWeight.w800 : FontWeight.w500,
+                color: t.ink,
+              ),
+            ),
+            destinations: List.generate(
+              _icons.length,
+              (i) => NavigationDestination(
+                icon: Icon(_icons[i], color: t.ink.withOpacity(0.5)),
+                selectedIcon: Icon(_icons[i], color: t.ink),
+                label: _labels[i],
+              ),
+            ),
+          ),
         ),
       ),
     );

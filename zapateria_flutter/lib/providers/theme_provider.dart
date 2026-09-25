@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:zapateria_flutter/components/neo_style.dart';
 
 class ThemeProvider with ChangeNotifier {
   bool _isDark = false;
@@ -12,97 +13,217 @@ class ThemeProvider with ChangeNotifier {
 
   ThemeData get theme => _isDark ? _darkTheme : _lightTheme;
 
+  // Neobrutalist / playful direction — see DESIGN.md. Bold black outlines,
+  // flat cards (no soft shadow; NeoCard adds the hard offset shadow where
+  // used directly), one accent color (NeoColors.accent) across both themes.
+
   static final _lightTheme = ThemeData(
     brightness: Brightness.light,
     colorScheme: ColorScheme.light(
-      primary: Colors.black87,
-      secondary: Colors.blue,
-      surface: Colors.white,
-      background: Colors.grey[100]!,
-      primaryContainer: Colors.blue.shade50,
-      onPrimaryContainer: Colors.blue.shade800,
-      secondaryContainer: Colors.blue.shade50,
-      onSecondaryContainer: Colors.blue.shade800,
+      primary: NeoColors.inkLight,
+      onPrimary: NeoColors.paperLight,
+      secondary: NeoColors.accent,
+      onSecondary: NeoColors.inkLight,
+      surface: NeoColors.paperLight,
+      primaryContainer: NeoColors.accent.withOpacity(0.35),
+      onPrimaryContainer: NeoColors.inkLight,
+      secondaryContainer: NeoColors.accent.withOpacity(0.35),
+      onSecondaryContainer: NeoColors.inkLight,
+      outline: NeoColors.inkLight,
     ),
-    hoverColor: Colors.grey.withOpacity(0.07),
-    scaffoldBackgroundColor: Colors.white,
+    dividerColor: NeoColors.inkLight.withOpacity(0.12),
+    hoverColor: NeoColors.inkLight.withOpacity(0.07),
+    scaffoldBackgroundColor: NeoColors.bgLight,
+    appBarTheme: const AppBarTheme(
+      backgroundColor: NeoColors.bgLight,
+      foregroundColor: NeoColors.inkLight,
+      elevation: 0,
+      titleTextStyle: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: NeoColors.inkLight),
+    ),
     navigationRailTheme: NavigationRailThemeData(
-      indicatorColor: Colors.blue.shade100,
+      backgroundColor: NeoColors.bgLight,
+      indicatorColor: NeoColors.accent,
+      selectedIconTheme: const IconThemeData(color: NeoColors.inkLight),
+      selectedLabelTextStyle: const TextStyle(color: NeoColors.inkLight, fontWeight: FontWeight.w800),
+    ),
+    bottomNavigationBarTheme: BottomNavigationBarThemeData(
+      backgroundColor: NeoColors.paperLight,
+      selectedItemColor: NeoColors.inkLight,
+      unselectedItemColor: NeoColors.inkLight.withOpacity(0.4),
+      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800),
     ),
     cardTheme: CardThemeData(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: Colors.white,
+      elevation: 0,
+      color: NeoColors.paperLight,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: NeoColors.inkLight, width: 2),
+      ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Colors.grey[100],
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[300]!)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[300]!)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.blue, width: 2)),
+      fillColor: NeoColors.paperLight,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: NeoColors.inkLight, width: 2)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: NeoColors.inkLight, width: 2)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: NeoColors.accent, width: 3)),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.black87,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        backgroundColor: NeoColors.accent,
+        foregroundColor: NeoColors.inkLight,
+        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: NeoColors.inkLight, width: 2),
+        ),
       ),
     ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: NeoColors.accent,
+        foregroundColor: NeoColors.inkLight,
+        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: NeoColors.inkLight, width: 2),
+        ),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: NeoColors.inkLight,
+        side: const BorderSide(color: NeoColors.inkLight, width: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: NeoColors.accent,
+      foregroundColor: NeoColors.inkLight,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: NeoColors.inkLight, width: 2),
+      ),
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: NeoColors.paperLight,
+      selectedColor: NeoColors.accent,
+      side: const BorderSide(color: NeoColors.inkLight, width: 1.5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      labelStyle: const TextStyle(fontWeight: FontWeight.w700, color: NeoColors.inkLight),
+    ),
     textTheme: const TextTheme(
-      headlineLarge: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87),
-      headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: Colors.black87),
-      headlineSmall: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.black87),
-      titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black87),
-      bodyLarge: TextStyle(fontSize: 16, color: Colors.black87),
-      bodyMedium: TextStyle(fontSize: 14, color: Colors.black54),
-      bodySmall: TextStyle(fontSize: 12, color: Colors.black38),
+      headlineLarge: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: NeoColors.inkLight),
+      headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: NeoColors.inkLight),
+      headlineSmall: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: NeoColors.inkLight),
+      titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: NeoColors.inkLight),
+      bodyLarge: TextStyle(fontSize: 16, color: NeoColors.inkLight),
+      bodyMedium: TextStyle(fontSize: 14, color: Color(0xFF4A4A4A)),
+      bodySmall: TextStyle(fontSize: 12, color: Color(0xFF767676)),
     ),
   );
 
   static final _darkTheme = ThemeData(
     brightness: Brightness.dark,
     colorScheme: ColorScheme.dark(
-      primary: Colors.white,
-      secondary: Colors.blue,
-      surface: Colors.grey[900]!,
-      background: Colors.black,
-      primaryContainer: Colors.blue.shade900,
-      onPrimaryContainer: Colors.blue.shade100,
-      secondaryContainer: Colors.blue.shade800,
-      onSecondaryContainer: Colors.blue.shade100,
+      primary: NeoColors.inkDark,
+      onPrimary: NeoColors.inkLight,
+      secondary: NeoColors.accent,
+      onSecondary: NeoColors.inkLight,
+      surface: NeoColors.paperDark,
+      primaryContainer: NeoColors.accent.withOpacity(0.25),
+      onPrimaryContainer: NeoColors.inkDark,
+      secondaryContainer: NeoColors.accent.withOpacity(0.25),
+      onSecondaryContainer: NeoColors.inkDark,
+      outline: NeoColors.inkDark,
     ),
-    hoverColor: Colors.white.withOpacity(0.06),
+    dividerColor: NeoColors.inkDark.withOpacity(0.15),
+    hoverColor: NeoColors.inkDark.withOpacity(0.08),
+    scaffoldBackgroundColor: NeoColors.bgDark,
+    appBarTheme: const AppBarTheme(
+      backgroundColor: NeoColors.bgDark,
+      foregroundColor: NeoColors.inkDark,
+      elevation: 0,
+      titleTextStyle: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: NeoColors.inkDark),
+    ),
     navigationRailTheme: NavigationRailThemeData(
-      indicatorColor: Colors.blue.shade800,
+      backgroundColor: NeoColors.bgDark,
+      indicatorColor: NeoColors.accent,
+      selectedIconTheme: const IconThemeData(color: NeoColors.inkLight),
+      selectedLabelTextStyle: const TextStyle(color: NeoColors.inkDark, fontWeight: FontWeight.w800),
     ),
-    scaffoldBackgroundColor: Colors.black,
+    bottomNavigationBarTheme: BottomNavigationBarThemeData(
+      backgroundColor: NeoColors.paperDark,
+      selectedItemColor: NeoColors.inkDark,
+      unselectedItemColor: NeoColors.inkDark.withOpacity(0.4),
+      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w800),
+    ),
     cardTheme: CardThemeData(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: Colors.grey[900],
+      elevation: 0,
+      color: NeoColors.paperDark,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: NeoColors.inkDark, width: 2),
+      ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Colors.grey[850],
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[700]!)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[700]!)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.blue, width: 2)),
+      fillColor: NeoColors.paperDark,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: NeoColors.inkDark, width: 2)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: NeoColors.inkDark, width: 2)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: NeoColors.accent, width: 3)),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        backgroundColor: NeoColors.accent,
+        foregroundColor: NeoColors.inkLight,
+        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: NeoColors.inkDark, width: 2),
+        ),
       ),
     ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: NeoColors.accent,
+        foregroundColor: NeoColors.inkLight,
+        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: NeoColors.inkDark, width: 2),
+        ),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: NeoColors.inkDark,
+        side: const BorderSide(color: NeoColors.inkDark, width: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: NeoColors.accent,
+      foregroundColor: NeoColors.inkLight,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: NeoColors.inkDark, width: 2),
+      ),
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: NeoColors.paperDark,
+      selectedColor: NeoColors.accent,
+      side: const BorderSide(color: NeoColors.inkDark, width: 1.5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      labelStyle: const TextStyle(fontWeight: FontWeight.w700, color: NeoColors.inkDark),
+    ),
     textTheme: const TextTheme(
-      headlineLarge: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
-      headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: Colors.white),
-      headlineSmall: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.white),
-      titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
-      bodyLarge: TextStyle(fontSize: 16, color: Colors.white),
-      bodyMedium: TextStyle(fontSize: 14, color: Colors.white70),
-      bodySmall: TextStyle(fontSize: 12, color: Colors.white54),
+      headlineLarge: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: NeoColors.inkDark),
+      headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: NeoColors.inkDark),
+      headlineSmall: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: NeoColors.inkDark),
+      titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: NeoColors.inkDark),
+      bodyLarge: TextStyle(fontSize: 16, color: NeoColors.inkDark),
+      bodyMedium: TextStyle(fontSize: 14, color: Color(0xFFBFBFBF)),
+      bodySmall: TextStyle(fontSize: 12, color: Color(0xFF8C8C8C)),
     ),
   );
 }
