@@ -7,3 +7,23 @@
 
 # Nested-repo backup metadata (if created during cleanup)
 zapateria-mobile/.git_backup_nested_*
+
+# macOS
+.DS_Store
+
+# Flutter/Android build output
+zapateria_flutter/build/
+zapateria_flutter/android/build/
+zapateria_flutter/android/app/build/
+zapateria_flutter/ios/build/
+zapateria_flutter/.dart_tool/
+
+# Backend build output
+zapateria-backend/dist/
+zapateria-backend/node_modules/
+
+# graphify (regenerable, not source of truth)
+graphify-out/
+
+# Claude Code local permissions (machine-specific, may contain local IPs/hosts)
+.claude/settings.local.json
