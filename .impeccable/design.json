@@ -1,34 +1,32 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-25T19:45:00Z",
+  "generatedAt": "2026-09-25T21:50:00Z",
   "title": "Design System: Zapatería La Prodigiosa",
   "platform": "android",
   "note": "Proyecto Flutter nativo (Android principal, iOS/web secundarios) — no un proyecto web, así que el panel de vista previa en navegador (HTML/CSS shadow DOM) no aplica aquí. Este sidecar omite el arreglo `components` con snippets HTML/CSS por esa razón; los componentes reales están documentados en prosa en DESIGN.md.",
   "extensions": {
     "colorMeta": {
-      "tinta-carbon": { "role": "primary", "displayName": "Tinta Carbón", "canonical": "rgba(0,0,0,0.87)" },
-      "azul-trabajo": {
+      "tinta": { "role": "primary", "displayName": "Tinta", "canonical": "#181818" },
+      "tinta-dark": { "role": "primary", "displayName": "Tinta (oscuro)", "canonical": "#F5F0E6" },
+      "acento": {
         "role": "secondary",
-        "displayName": "Azul Trabajo",
-        "canonical": "#2196F3",
-        "tonalRamp": ["#0D47A1", "#1565C0", "#1976D2", "#1E88E5", "#2196F3", "#42A5F5", "#64B5F6", "#90CAF9", "#BBDEFB", "#E3F2FD"]
+        "displayName": "Acento",
+        "canonical": "#FFC800",
+        "tonalRamp": ["#7A5F00", "#A37E00", "#CC9D00", "#E6B300", "#FFC800", "#FFD333", "#FFDE66", "#FFE999", "#FFF4CC", "#FFFAE6"]
       },
-      "papel": {
-        "role": "neutral",
-        "displayName": "Papel",
-        "canonical": "#FFFFFF",
-        "tonalRamp": ["#212121", "#424242", "#616161", "#757575", "#9E9E9E", "#BDBDBD", "#E0E0E0", "#EEEEEE", "#F5F5F5", "#FAFAFA", "#FFFFFF"]
-      },
-      "fondo-neutro": { "role": "neutral", "displayName": "Fondo Neutro", "canonical": "#F5F5F5" },
-      "contenedor-azul": { "role": "neutral", "displayName": "Contenedor Azul", "canonical": "#E3F2FD" },
-      "borde-neutro": { "role": "neutral", "displayName": "Borde Neutro", "canonical": "#E0E0E0" }
+      "papel": { "role": "neutral", "displayName": "Papel", "canonical": "#FFFFFF" },
+      "papel-dark": { "role": "neutral", "displayName": "Papel (oscuro)", "canonical": "#232323" },
+      "fondo": { "role": "neutral", "displayName": "Fondo", "canonical": "#FBF3E4" },
+      "fondo-dark": { "role": "neutral", "displayName": "Fondo (oscuro)", "canonical": "#121212" }
     },
     "typographyMeta": {
-      "headline-large": { "displayName": "Headline Large", "purpose": "Títulos de pantalla principales." },
-      "title-large": { "displayName": "Title Large", "purpose": "Títulos de lista/ítem destacado." },
-      "body-large": { "displayName": "Body Large", "purpose": "Texto de contenido principal." }
+      "headline-large": { "displayName": "Headline Large", "purpose": "Títulos de pantalla principales, peso 900." },
+      "title-large": { "displayName": "Title Large", "purpose": "Títulos de lista/ítem destacado, peso 800." },
+      "body-large": { "displayName": "Body Large", "purpose": "Texto de contenido principal, peso regular." }
     },
-    "shadows": [],
+    "shadows": [
+      { "name": "sombra-dura", "value": "offset(4,4) blurRadius:0 color:Tinta", "purpose": "Sombra sólida sin difuminar detrás de cada NeoCard — el efecto 'sticker' del sistema. En modo oscuro usa un tono que siga leyéndose contra el fondo casi negro (ver NeoTheme.shadow en el código)." }
+    ],
     "motion": [],
     "breakpoints": [
       { "name": "compact-to-expanded", "value": "definido por kIsWeb en MainShell, no por ancho de pantalla (bottom nav en móvil, rail en web)" }
@@ -36,28 +34,32 @@
   },
   "components": [],
   "narrative": {
-    "northStar": "El Cuaderno de Ventas",
-    "overview": "La interfaz se comporta como una libreta de ventas bien llevada: plana, legible de un vistazo, sin decoración que no ayude a cerrar la venta rápido. El tono es cálido pero profesional — Material Design estándar de Android, sin capas de personalidad de marca todavía, pero tampoco frío ni corporativo.",
+    "northStar": "El Puesto de Feria",
+    "overview": "La interfaz se siente como el puesto de una feria bien organizada: cada producto vive en su propia tarjeta recortada, con borde negro grueso y una sombra dura que la hace sentir física, como una calcomanía pegada sobre un fondo cálido. Bold sin perder función — botones grandes, alto contraste, velocidad de venta intacta. Reemplaza al norte anterior ('El Cuaderno de Ventas', sobrio/Material estándar) a pedido explícito del negocio, con una referencia visual concreta.",
     "keyCharacteristics": [
-      "Material Design 3 estándar en Android, sin adaptación nativa por plataforma",
-      "Acento azul único (Azul Trabajo) para interacción y selección",
-      "Tipografía Roboto por roles, sin variación de marca",
-      "Modo claro y oscuro completamente definidos y simétricos"
+      "Neobrutalista: borde negro 2px + sombra dura (offset, sin blur) en cada tarjeta",
+      "Acento único saturado (amarillo) para toda acción primaria",
+      "Fondo cálido (crema en claro) en vez de blanco/gris neutro",
+      "Tipografía Roboto con pesos elevados (800-900) en títulos",
+      "Radios generosos (16-20px), más redondeado que Material estándar",
+      "Colores semánticos de estado (efectivo/tarjeta/mixto/inversionista) preservados sin cambios"
     ],
     "rules": [
-      { "name": "La Regla del Acento Único", "body": "Solo existe un color de interacción (Azul Trabajo). No se introduce un segundo o tercer acento sin una razón funcional clara.", "section": "colors" },
-      { "name": "La Regla de lo Plano", "body": "Ninguna superficie usa sombra para transmitir jerarquía. La separación viene de color de fondo o de un borde de 1px.", "section": "elevation" }
+      { "name": "La Regla del Acento Único", "body": "Solo existe un color saturado (Acento). Los colores semánticos de estado se conservan — son información, no expresión de marca.", "section": "colors" },
+      { "name": "La Regla de la Sombra Dura", "body": "Toda sombra es un offset sólido de 4px sin blur, nunca una sombra suave de Material. Es lo que hace que una tarjeta se sienta como una calcomanía recortada.", "section": "elevation" }
     ],
     "dos": [
-      "Do mantener el acento azul único para toda interacción/selección.",
+      "Do usar NeoCard y NeoIconButton para cualquier tarjeta o botón de ícono nuevo.",
+      "Do mantener el acento amarillo único para toda acción primaria.",
+      "Do conservar los colores semánticos de estado tal como están.",
       "Do priorizar botones y campos grandes, fáciles de tocar rápido en el mostrador.",
-      "Do mover las tarjetas a plano en la próxima pasada de implementación.",
-      "Do mantener paridad completa entre modo claro y oscuro."
+      "Do verificar overflow al agregar texto largo junto a un badge/chip — el peso tipográfico más alto ocupa más espacio."
     ],
     "donts": [
-      "Don't agregar sombras, glassmorphism, o efectos decorativos.",
-      "Don't animar de forma llamativa transiciones de uso frecuente.",
-      "Don't inventar una identidad de marca sin que el negocio la defina."
+      "Don't usar sombras suaves de Material — todo es plano + borde, o borde + sombra dura.",
+      "Don't introducir un segundo color saturado.",
+      "Don't sacrificar contraste o tamaño de toque por el look bold.",
+      "Don't inventar una fuente custom sin evaluarlo (sigue siendo Roboto con pesos altos)."
     ]
   }
 }
