@@ -16,12 +16,16 @@ POS system for "Zapatería La Prodigiosa" (shoe store). Two sub-projects:
 ```bash
 # Start everything (from repo root)
 docker compose up -d --build
-
-# On Linux/Raspberry Pi, set the LAN IP so the phone can reach the backend:
-EXPO_PUBLIC_API_URL=http://<LAN_IP>:3000 docker compose up -d --build
 ```
 
-Services: `postgres` on 5432, `backend` on 3000, `web` (Flutter web via nginx) on 8090.
+Services: `postgres` on 5432, `backend` on 3000, `web` (Flutter web via nginx) on 8090. The
+`web` container proxies `/api` to `backend:3000` internally (see `zapateria_flutter/nginx.conf`) —
+no env var or LAN IP configuration is needed to run the stack. To reach `web` from another device
+on the same network, use the host's LAN IP with port 8090 instead of `localhost`.
+
+To run the native mobile app (not the Docker `web` build) against a backend on another machine
+(e.g. a Raspberry Pi), point it at that machine's LAN IP — see Flutter commands below
+(`--dart-define=API_URL=<url>` or edit `lib/services/api_client.dart`).
 
 ### Backend (NestJS)
 
