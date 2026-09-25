@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:zapateria_flutter/components/neo_style.dart';
 import 'package:zapateria_flutter/components/barcode_pattern_builder.dart';
 import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/services/marca_service.dart';
@@ -100,7 +101,8 @@ class _MarcasScreenState extends State<MarcasScreen> {
           itemCount: _marcas.length,
           itemBuilder: (context, index) {
             final marca = _marcas[index];
-            return Card(
+            return NeoCard(
+              padding: EdgeInsets.zero,
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
                 leading: CircleAvatar(

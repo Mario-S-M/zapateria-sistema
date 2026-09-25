@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:zapateria_flutter/components/neo_style.dart';
 import 'package:zapateria_flutter/components/zapato_image.dart';
 import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/services/venta_service.dart';
@@ -92,7 +93,8 @@ class _CierreCajaScreenState extends State<CierreCajaScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Card(
+            NeoCard(
+              padding: EdgeInsets.zero,
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
@@ -179,7 +181,8 @@ class _CierreCajaScreenState extends State<CierreCajaScreen> {
   }
 
   Widget _buildInversionistaAcordeon(CierreCajaInversionista inv, ThemeData theme) {
-    return Card(
+    return NeoCard(
+      padding: EdgeInsets.zero,
       margin: const EdgeInsets.only(bottom: 6),
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
@@ -240,7 +243,8 @@ class _CierreCajaScreenState extends State<CierreCajaScreen> {
 
   Widget _buildDeudasTarjeta(CierreCajaDia dia, ThemeData theme) {
     final nombre = dia.terminalNombre ?? 'Terminal';
-    return Card(
+    return NeoCard(
+      padding: EdgeInsets.zero,
       color: Colors.orange.shade50,
       margin: EdgeInsets.zero,
       child: Padding(

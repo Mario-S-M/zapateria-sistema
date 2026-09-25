@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:zapateria_flutter/components/neo_style.dart';
 import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/services/inversionista_service.dart';
 import 'package:zapateria_flutter/components/inversionista_form.dart';
@@ -264,7 +265,8 @@ class _InversionistasScreenState extends State<InversionistasScreen> {
         itemCount: _inversionistas.length,
         itemBuilder: (context, index) {
           final inv = _inversionistas[index];
-          return Card(
+          return NeoCard(
+            padding: EdgeInsets.zero,
             margin: const EdgeInsets.only(bottom: 8),
             child: ListTile(
               leading: CircleAvatar(child: Text(inv.nombre[0].toUpperCase())),

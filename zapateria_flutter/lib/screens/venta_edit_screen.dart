@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:zapateria_flutter/components/neo_style.dart';
 import 'package:flutter/services.dart';
 import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/services/inversionista_service.dart';
@@ -123,7 +124,8 @@ class _VentaEditScreenState extends State<VentaEditScreen> {
       padding: const EdgeInsets.all(24),
       children: [
         // Header
-        Card(
+        NeoCard(
+          padding: EdgeInsets.zero,
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -139,7 +141,8 @@ class _VentaEditScreenState extends State<VentaEditScreen> {
         ),
         const SizedBox(height: 16),
         // Tipo precio
-        Card(
+        NeoCard(
+          padding: EdgeInsets.zero,
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -181,7 +184,8 @@ class _VentaEditScreenState extends State<VentaEditScreen> {
         ),
         const SizedBox(height: 16),
         // Método de pago
-        Card(
+        NeoCard(
+          padding: EdgeInsets.zero,
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -250,7 +254,8 @@ class _VentaEditScreenState extends State<VentaEditScreen> {
         ..._items.asMap().entries.map((e) => _buildItemCard(e.key, e.value, theme)),
         const SizedBox(height: 16),
         // Total
-        Card(
+        NeoCard(
+          padding: EdgeInsets.zero,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Row(
@@ -289,7 +294,8 @@ class _VentaEditScreenState extends State<VentaEditScreen> {
   }
 
   Widget _buildItemCard(int index, _EditableItem item, ThemeData theme) {
-    return Card(
+    return NeoCard(
+      padding: EdgeInsets.zero,
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:zapateria_flutter/components/neo_style.dart';
 import 'package:zapateria_flutter/components/zapato_image.dart';
 import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/models/ticket_data.dart';
@@ -164,7 +165,8 @@ class _VentaAccordion extends StatelessWidget {
     final theme = Theme.of(context);
     final hasMultipleItems = venta.items.length > 1;
 
-    return Card(
+    return NeoCard(
+      padding: EdgeInsets.zero,
       margin: const EdgeInsets.only(bottom: 8),
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(

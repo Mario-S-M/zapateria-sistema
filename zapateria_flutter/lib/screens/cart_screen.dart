@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:zapateria_flutter/components/neo_style.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:zapateria_flutter/models/models.dart';
@@ -231,7 +232,8 @@ class _CartScreenState extends State<CartScreen> {
             children: [
               Expanded(
                 flex: 3,
-                child: Card(
+                child: NeoCard(
+                  padding: EdgeInsets.zero,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
@@ -249,7 +251,8 @@ class _CartScreenState extends State<CartScreen> {
               const SizedBox(width: 20),
               SizedBox(
                 width: 340,
-                child: Card(
+                child: NeoCard(
+                  padding: EdgeInsets.zero,
                   child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Column(
@@ -301,7 +304,8 @@ class _CartScreenState extends State<CartScreen> {
             itemCount: cart.items.length,
             itemBuilder: (context, index) {
               final item = cart.items[index];
-              return Card(
+              return NeoCard(
+                padding: EdgeInsets.zero,
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: ZapatoImage(imageUrl: item.zapato.foto, height: 50, width: 50, borderRadius: 8),
@@ -632,7 +636,8 @@ class _CartBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return NeoCard(
+      padding: EdgeInsets.zero,
       margin: const EdgeInsets.all(16),
       child: Padding(
         padding: const EdgeInsets.all(16),

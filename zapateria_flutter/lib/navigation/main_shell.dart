@@ -65,6 +65,7 @@ class _MainShellState extends State<MainShell> {
               decoration: BoxDecoration(
                 color: t.bg,
                 border: Border(right: BorderSide(color: t.ink, width: 2)),
+                boxShadow: [BoxShadow(color: t.shadow, offset: const Offset(4, 0), blurRadius: 0)],
               ),
               child: NavigationRail(
                 selectedIndex: _currentIndex,
@@ -107,12 +108,16 @@ class _MainShellState extends State<MainShell> {
         index: _currentIndex,
         children: _pages,
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: t.paper,
-          border: Border(top: BorderSide(color: t.ink, width: 2)),
-        ),
-        child: SafeArea(
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+        child: Container(
+          decoration: BoxDecoration(
+            color: t.paper,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: t.ink, width: 2),
+            boxShadow: [BoxShadow(color: t.shadow, offset: const Offset(4, 4), blurRadius: 0)],
+          ),
+          clipBehavior: Clip.antiAlias,
           child: NavigationBar(
             selectedIndex: _currentIndex,
             onDestinationSelected: (i) => setState(() => _currentIndex = i),

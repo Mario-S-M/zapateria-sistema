@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:zapateria_flutter/components/neo_style.dart';
 import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/services/inventario_service.dart';
 import 'package:zapateria_flutter/components/color_circle.dart';
@@ -603,7 +604,8 @@ class _MobileColorAccordionState extends State<_MobileColorAccordion> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
+    return NeoCard(
+      padding: EdgeInsets.zero,
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(

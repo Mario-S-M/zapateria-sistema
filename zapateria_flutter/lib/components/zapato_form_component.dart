@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:zapateria_flutter/components/neo_style.dart';
 import 'package:uuid/uuid.dart';
 import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/services/zapato_service.dart';
@@ -692,7 +693,8 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
           ),
         ...List.generate(_precioRangos.length, (i) {
           final r = _precioRangos[i];
-          return Card(
+          return NeoCard(
+            padding: EdgeInsets.zero,
             margin: const EdgeInsets.only(bottom: 8),
             child: Padding(
               padding: const EdgeInsets.all(12),
@@ -792,7 +794,8 @@ class _ZapatoFormComponentState extends State<ZapatoFormComponent> {
   }
 
   Widget _buildSummaryCard(ThemeData theme) {
-    return Card(
+    return NeoCard(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

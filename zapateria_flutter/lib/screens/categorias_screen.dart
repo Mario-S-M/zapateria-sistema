@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:zapateria_flutter/components/neo_style.dart';
 import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/screens/marcas_screen.dart';
 import 'package:zapateria_flutter/services/categoria_service.dart';
@@ -288,7 +289,8 @@ class _CategoriasScreenState extends State<CategoriasScreen> {
         itemCount: _categorias.length,
         itemBuilder: (context, index) {
           final cat = _categorias[index];
-          return Card(
+          return NeoCard(
+            padding: EdgeInsets.zero,
             margin: const EdgeInsets.only(bottom: 8),
             child: ListTile(
               leading: CircleAvatar(
