@@ -1,0 +1,46 @@
+name: Sync Kanban con PRs
+
+# Se dispara cuando se abre, reabre o cierra (incluye merge) un Pull Request
+# en este repo (zapateria-sistema).
+on:
+  pull_request:
+    types: [opened, reopened, closed]
+
+jobs:
+  sync-kanban:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repo de documentación (zapateria-docs)
+        uses: actions/checkout@v4
+        with:
+          repository: Mario-S-M/zapateria-docs
+          token: ${{ secrets.DOCS_REPO_TOKEN }}
+          path: docs-repo
+
+      - name: Checkout de este repo (para usar el script)
+        uses: actions/checkout@v4
+        with:
+          path: code-repo
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Mover tarjeta en el kanban
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+          PR_ACTION: ${{ github.event.action }}
+          KANBAN_PATH: docs-repo/Zapateria-La-Prodigiosa/Kanban.md
+        run: node code-repo/scripts/sync-kanban.mjs
+
+      - name: Commit y push al repo de docs
+        working-directory: docs-repo
+        run: |
+          git config user.name "kanban-bot"
+          git config user.email "kanban-bot@users.noreply.github.com"
+          git add Zapateria-La-Prodigiosa/Kanban.md
+          git diff --cached --quiet || git commit -m "Actualiza kanban por PR #${{ github.event.pull_request.number }}"
+          git push
