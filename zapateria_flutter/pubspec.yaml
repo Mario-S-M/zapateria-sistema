@@ -23,8 +23,10 @@ dependencies:
   shared_preferences: ^2.2.2
   cached_network_image: ^3.4.1
   permission_handler: ^11.3.1
-  flutter_bluetooth_serial: ^0.4.0
+  flutter_bluetooth_serial_plus: ^0.5.6
   barcode_widget: ^2.0.0
+  package_info_plus: ^10.2.1
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:

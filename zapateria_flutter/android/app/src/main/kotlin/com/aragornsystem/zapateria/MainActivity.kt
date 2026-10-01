@@ -1,4 +1,4 @@
-package com.example.zapateria_flutter
+package com.aragornsystem.zapateria
 
 import io.flutter.embedding.android.FlutterActivity
 

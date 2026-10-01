@@ -8,6 +8,7 @@ import 'package:zapateria_flutter/screens/scanner_screen.dart';
 import 'package:zapateria_flutter/screens/cierre_caja_screen.dart';
 import 'package:zapateria_flutter/screens/inversionistas_screen.dart';
 import 'package:zapateria_flutter/screens/categorias_screen.dart';
+import 'package:zapateria_flutter/services/update_service.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -18,6 +19,14 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService.revisarYAvisar(context);
+    });
+  }
 
   final _pages = [
     const ZapatosScreen(),
