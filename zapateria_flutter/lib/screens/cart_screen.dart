@@ -7,6 +7,9 @@ import 'package:zapateria_flutter/models/models.dart';
 import 'package:zapateria_flutter/models/ticket_data.dart';
 import 'package:zapateria_flutter/providers/cart_provider.dart';
 import 'package:zapateria_flutter/screens/ticket_screen.dart';
+import 'package:zapateria_flutter/screens/apartados_screen.dart';
+import 'package:zapateria_flutter/components/apartado_dialogs.dart';
+import 'package:zapateria_flutter/services/apartado_service.dart';
 import 'package:zapateria_flutter/services/inversionista_service.dart';
 import 'package:zapateria_flutter/services/venta_service.dart';
 import 'package:zapateria_flutter/components/zapato_image.dart';
@@ -153,6 +156,52 @@ class _CartScreenState extends State<CartScreen> {
     }
   }
 
+  Future<void> _apartar(BuildContext context) async {
+    final cart = context.read<CartProvider>();
+    if (cart.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('El carrito está vacío')));
+      return;
+    }
+    if (cart.tipoPrecio == TipoPrecio.inversionista && cart.inversionistaId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selecciona un inversionista')));
+      return;
+    }
+    final data = await showNuevoApartadoDialog(context, total: cart.total);
+    if (data == null || !context.mounted) return;
+
+    try {
+      final apartado = await apartadoService.create(
+        folio: 'A-${DateTime.now().millisecondsSinceEpoch}',
+        clienteNombre: data.clienteNombre,
+        clienteTelefono: data.clienteTelefono,
+        tipoPrecio: cart.tipoPrecio,
+        inversionistaId: cart.inversionistaId,
+        items: cart.items.map((i) => VentaItemDto(
+          zapatoId: i.zapato.id,
+          cantidad: i.cantidad,
+          precioUnitario: i.precioUnitario,
+          colorId: i.colorId,
+          talla: i.talla,
+        )).toList(),
+        abonoInicial: data.abono,
+        metodoAbono: data.metodo,
+      );
+      cart.clearCart();
+      _montoTarjetaCtrl.clear();
+      _billeteCtrl.clear();
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => TicketScreen(ticket: ticketFromApartado(apartado))),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(apartadoErrorMessage(e))));
+      }
+    }
+  }
+
   String _metodoPagoLabel(MetodoPago mp) {
     switch (mp) {
       case MetodoPago.efectivo: return 'Efectivo';
@@ -283,6 +332,15 @@ class _CartScreenState extends State<CartScreen> {
                                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _apartar(context),
+                            icon: const Icon(Icons.bookmark_add_outlined),
+                            label: const Text('Apartar'),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -356,6 +414,7 @@ class _CartScreenState extends State<CartScreen> {
           inversionistas: _inversionistas,
           paymentControls: _buildPaymentControls(context, cart, theme),
           onCheckout: () => _checkout(context),
+          onApartar: () => _apartar(context),
           onChangeTipo: () => _showTipoPrecioSheet(context, cart),
         ),
       ],
@@ -623,6 +682,7 @@ class _CartBottomBar extends StatelessWidget {
   final List<InversionistaModel> inversionistas;
   final Widget paymentControls;
   final VoidCallback onCheckout;
+  final VoidCallback onApartar;
   final VoidCallback onChangeTipo;
 
   const _CartBottomBar({
@@ -631,6 +691,7 @@ class _CartBottomBar extends StatelessWidget {
     required this.inversionistas,
     required this.paymentControls,
     required this.onCheckout,
+    required this.onApartar,
     required this.onChangeTipo,
   });
 
@@ -659,6 +720,13 @@ class _CartBottomBar extends StatelessWidget {
               onPressed: onCheckout,
               style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
               child: const Text('Finalizar Venta', style: TextStyle(fontSize: 18)),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: onApartar,
+              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(44)),
+              icon: const Icon(Icons.bookmark_add_outlined),
+              label: const Text('Apartar'),
             ),
           ],
         ),

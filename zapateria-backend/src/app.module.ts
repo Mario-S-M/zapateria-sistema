@@ -11,6 +11,7 @@ import { UploadModule } from './upload/upload.module';
 import { CategoriaModule } from './categoria/categoria.module';
 import { InventarioModule } from './inventario/inventario.module';
 import { MarcaModule } from './marca/marca.module';
+import { ApartadoModule } from './apartado/apartado.module';
 import { Color } from './entities/color.entity';
 import { Zapato } from './entities/zapato.entity';
 import { ZapatoColor } from './entities/zapato-color.entity';
@@ -21,6 +22,9 @@ import { Categoria } from './entities/categoria.entity';
 import { Inventario } from './entities/inventario.entity';
 import { PrecioRango } from './entities/precio-rango.entity';
 import { Marca } from './entities/marca.entity';
+import { Apartado } from './entities/apartado.entity';
+import { ApartadoItem } from './entities/apartado-item.entity';
+import { Abono } from './entities/abono.entity';
 
 @Module({
   imports: [
@@ -45,6 +49,9 @@ import { Marca } from './entities/marca.entity';
         Inventario,
         PrecioRango,
         Marca,
+        Apartado,
+        ApartadoItem,
+        Abono,
       ],
       synchronize: true,
       retryAttempts: 3,
@@ -64,6 +71,7 @@ import { Marca } from './entities/marca.entity';
     CategoriaModule,
     InventarioModule,
     MarcaModule,
+    ApartadoModule,
   ],
   controllers: [AppController],
   providers: [AppService],

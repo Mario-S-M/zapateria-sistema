@@ -148,7 +148,8 @@ class TicketPrintService {
     // Header
     buf.addAll(EscPos.init80());
     addLine(sep, align: EscPos.alignCenter);
-    addLine('TICKET DE COMPRA', align: EscPos.alignCenter, bold: true);
+    addLine(ticket.esApartado ? 'TICKET DE APARTADO' : 'TICKET DE COMPRA',
+        align: EscPos.alignCenter, bold: true);
     addLine(sep, align: EscPos.alignCenter);
     addLine(kBusinessName, align: EscPos.alignCenter, bold: true);
     addLine(kBusinessAddr1, align: EscPos.alignCenter);
@@ -161,6 +162,9 @@ class TicketPrintService {
     addLine('Fecha:  $dateStr', align: EscPos.alignCenter);
     if (ticket.clienteNombre != null && ticket.clienteNombre!.isNotEmpty) {
       addLine('Cliente: ${ticket.clienteNombre}', align: EscPos.alignCenter);
+    }
+    if (ticket.clienteTelefono != null && ticket.clienteTelefono!.isNotEmpty) {
+      addLine('Tel: ${ticket.clienteTelefono}', align: EscPos.alignCenter);
     }
     addLine(dash);
 
@@ -194,20 +198,50 @@ class TicketPrintService {
       bold: true,
     );
 
-    // Pago
-    addLine(dash);
-    addLine('Pago: ${ticket.metodoPago}');
-    if (ticket.montoTarjeta != null && ticket.montoTarjeta! > 0) {
-      addLine('  Tarjeta:   \$${formatPrice(ticket.montoTarjeta!)}');
-    }
-    if (ticket.montoRecibido != null && ticket.montoRecibido! > 0) {
-      addLine('  Recibido:  \$${formatPrice(ticket.montoRecibido!)}');
-    }
-    if (ticket.cambio != null && ticket.cambio! >= 0) {
-      addLine('  Cambio:    \$${formatPrice(ticket.cambio!)}');
-    }
-    if (ticket.inversionistaNombre != null) {
-      addLine('Cuenta: ${ticket.inversionistaNombre}');
+    if (ticket.esApartado) {
+      // Histórico de abonos
+      addLine(dash);
+      addLine('ABONOS', bold: true);
+      var n = 1;
+      var abonado = 0.0;
+      for (final a in ticket.abonos!) {
+        abonado += a.monto;
+        final f = DateFormat('dd/MM/yy HH:mm', 'es_MX').format(a.fecha);
+        final left = '$n. $f';
+        final right = '\$${formatPrice(a.monto)}';
+        final gap = 32 - left.length - right.length;
+        addLine('$left${' ' * (gap > 0 ? gap : 1)}$right');
+        addLine('   ${a.metodoPago}');
+        n++;
+      }
+      if (ticket.abonos!.isEmpty) addLine('  (sin abonos)');
+      addLine(dash);
+      void totalLine(String label, double v, {bool bold = false}) {
+        final val = '\$${formatPrice(v)}';
+        final gap = 32 - label.length - val.length;
+        addLine('$label${' ' * (gap > 0 ? gap : 1)}$val', bold: bold);
+      }
+      totalLine('ABONADO:', abonado);
+      totalLine('SALDO:', ticket.saldo ?? (ticket.total - abonado), bold: true);
+      if (ticket.inversionistaNombre != null) {
+        addLine('Cuenta: ${ticket.inversionistaNombre}');
+      }
+    } else {
+      // Pago
+      addLine(dash);
+      addLine('Pago: ${ticket.metodoPago}');
+      if (ticket.montoTarjeta != null && ticket.montoTarjeta! > 0) {
+        addLine('  Tarjeta:   \$${formatPrice(ticket.montoTarjeta!)}');
+      }
+      if (ticket.montoRecibido != null && ticket.montoRecibido! > 0) {
+        addLine('  Recibido:  \$${formatPrice(ticket.montoRecibido!)}');
+      }
+      if (ticket.cambio != null && ticket.cambio! >= 0) {
+        addLine('  Cambio:    \$${formatPrice(ticket.cambio!)}');
+      }
+      if (ticket.inversionistaNombre != null) {
+        addLine('Cuenta: ${ticket.inversionistaNombre}');
+      }
     }
 
     // Barcode

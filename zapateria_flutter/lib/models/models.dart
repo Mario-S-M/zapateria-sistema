@@ -780,3 +780,169 @@ class InventarioItemModel {
     );
   }
 }
+
+
+enum EstadoApartado { activo, entregado, cancelado }
+
+enum MetodoAbono { efectivo, tarjeta }
+
+class AbonoModel {
+  final String id;
+  final double monto;
+  final MetodoAbono metodoPago;
+  final DateTime fecha;
+
+  AbonoModel({
+    required this.id,
+    required this.monto,
+    required this.metodoPago,
+    required this.fecha,
+  });
+
+  factory AbonoModel.fromJson(Map<String, dynamic> json) {
+    return AbonoModel(
+      id: json['id'] as String,
+      monto: double.parse(json['monto'].toString()),
+      metodoPago: (json['metodoPago'] as String).toUpperCase() == 'TARJETA'
+          ? MetodoAbono.tarjeta
+          : MetodoAbono.efectivo,
+      fecha: DateTime.parse(json['fecha'] as String),
+    );
+  }
+
+  String get metodoPagoLabel =>
+      metodoPago == MetodoAbono.tarjeta ? 'Tarjeta' : 'Efectivo';
+}
+
+class ApartadoItemModel {
+  final String id;
+  final int cantidad;
+  final double precioUnitario;
+  final double subtotal;
+  final String? zapatoId;
+  final String? colorId;
+  final double? talla;
+  final ZapatoModel? zapato;
+
+  ApartadoItemModel({
+    required this.id,
+    required this.cantidad,
+    required this.precioUnitario,
+    required this.subtotal,
+    this.zapatoId,
+    this.colorId,
+    this.talla,
+    this.zapato,
+  });
+
+  factory ApartadoItemModel.fromJson(Map<String, dynamic> json) {
+    ZapatoModel? zapato;
+    if (json['zapato'] != null) {
+      try {
+        zapato = ZapatoModel.fromJson(json['zapato'] as Map<String, dynamic>);
+      } catch (_) {}
+    }
+    return ApartadoItemModel(
+      id: json['id'] as String,
+      cantidad: json['cantidad'] as int,
+      precioUnitario: double.parse(json['precioUnitario'].toString()),
+      subtotal: double.parse(json['subtotal'].toString()),
+      zapatoId: json['zapatoId'] as String?,
+      colorId: json['colorId'] as String?,
+      talla: json['talla'] == null ? null : double.parse(json['talla'].toString()),
+      zapato: zapato,
+    );
+  }
+
+  String? get colorNombre {
+    if (colorId == null || zapato == null) return null;
+    for (final zc in zapato!.colores) {
+      if (zc.colorId == colorId) return zc.color.nombre;
+    }
+    return null;
+  }
+}
+
+class ApartadoModel {
+  final String id;
+  final String folio;
+  final String clienteNombre;
+  final String? clienteTelefono;
+  final DateTime fecha;
+  final double total;
+  final TipoPrecio tipoPrecio;
+  final EstadoApartado estado;
+  final String? ventaId;
+  final InversionistaModel? inversionista;
+  final List<ApartadoItemModel> items;
+  final List<AbonoModel> abonos;
+
+  ApartadoModel({
+    required this.id,
+    required this.folio,
+    required this.clienteNombre,
+    this.clienteTelefono,
+    required this.fecha,
+    required this.total,
+    required this.tipoPrecio,
+    required this.estado,
+    this.ventaId,
+    this.inversionista,
+    required this.items,
+    required this.abonos,
+  });
+
+  factory ApartadoModel.fromJson(Map<String, dynamic> json) {
+    TipoPrecio tipoPrecio;
+    switch ((json['tipoPrecio'] as String? ?? 'PUBLICO').toUpperCase()) {
+      case 'MAYORISTA':
+        tipoPrecio = TipoPrecio.mayorista;
+        break;
+      case 'INVERSIONISTA':
+        tipoPrecio = TipoPrecio.inversionista;
+        break;
+      default:
+        tipoPrecio = TipoPrecio.publico;
+    }
+
+    EstadoApartado estado;
+    switch ((json['estado'] as String? ?? 'ACTIVO').toUpperCase()) {
+      case 'ENTREGADO':
+        estado = EstadoApartado.entregado;
+        break;
+      case 'CANCELADO':
+        estado = EstadoApartado.cancelado;
+        break;
+      default:
+        estado = EstadoApartado.activo;
+    }
+
+    return ApartadoModel(
+      id: json['id'] as String,
+      folio: json['folio'] as String,
+      clienteNombre: json['clienteNombre'] as String,
+      clienteTelefono: json['clienteTelefono'] as String?,
+      fecha: DateTime.parse(json['fecha'] as String),
+      total: double.parse(json['total'].toString()),
+      tipoPrecio: tipoPrecio,
+      estado: estado,
+      ventaId: json['ventaId'] as String?,
+      inversionista: json['inversionista'] != null
+          ? InversionistaModel.fromJson(json['inversionista'] as Map<String, dynamic>)
+          : null,
+      items: (json['items'] as List? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map(ApartadoItemModel.fromJson)
+          .toList(),
+      abonos: (json['abonos'] as List? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map(AbonoModel.fromJson)
+          .toList()
+        ..sort((a, b) => a.fecha.compareTo(b.fecha)),
+    );
+  }
+
+  double get totalAbonado => abonos.fold(0.0, (s, a) => s + a.monto);
+  double get saldo => ((total - totalAbonado) * 100).round() / 100;
+  bool get liquidado => saldo <= 0;
+}

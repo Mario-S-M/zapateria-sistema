@@ -16,7 +16,7 @@ class TicketScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey.shade300,
       appBar: AppBar(
-        title: const Text('Ticket de Venta'),
+        title: Text(ticket.esApartado ? 'Ticket de Apartado' : 'Ticket de Venta'),
         automaticallyImplyLeading: false,
         actions: [
           TextButton.icon(
@@ -67,7 +67,7 @@ class _ReceiptCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ── Logo / Header ────────────────────────────────
-          Text('TICKET DE COMPRA',
+          Text(ticket.esApartado ? 'TICKET DE APARTADO' : 'TICKET DE COMPRA',
               style: boldReceipt.copyWith(fontSize: 14, letterSpacing: 1.2),
               textAlign: TextAlign.center),
           const SizedBox(height: 6),
@@ -90,6 +90,8 @@ class _ReceiptCard extends StatelessWidget {
           Text('Fecha: $dateStr', style: receiptFont, textAlign: TextAlign.center),
           if (ticket.clienteNombre != null && ticket.clienteNombre!.isNotEmpty)
             Text('Cliente: ${ticket.clienteNombre}', style: receiptFont, textAlign: TextAlign.center),
+          if (ticket.clienteTelefono != null && ticket.clienteTelefono!.isNotEmpty)
+            Text('Tel: ${ticket.clienteTelefono}', style: receiptFont, textAlign: TextAlign.center),
           _Separator(),
 
           // ── Items ─────────────────────────────────────────
@@ -112,21 +114,53 @@ class _ReceiptCard extends StatelessWidget {
           ),
           _Separator(),
 
-          // ── Pago ──────────────────────────────────────────
-          Text('Pago: ${ticket.metodoPago}', style: receiptFont),
-          if (ticket.montoTarjeta != null && ticket.montoTarjeta! > 0)
-            _PayRow('Tarjeta:', '\$${formatPrice(ticket.montoTarjeta!)}',
-                receiptFont),
-          if (ticket.montoRecibido != null && ticket.montoRecibido! > 0)
-            _PayRow('Recibido:', '\$${formatPrice(ticket.montoRecibido!)}',
-                receiptFont),
-          if (ticket.cambio != null && ticket.cambio! >= 0)
-            _PayRow('Cambio:', '\$${formatPrice(ticket.cambio!)}', boldReceipt,
-                color: Colors.green.shade700),
-          if (ticket.inversionistaNombre != null) ...[
-            const SizedBox(height: 4),
-            Text('Cuenta: ${ticket.inversionistaNombre}',
-                style: smallReceipt),
+          // ── Pago / Abonos ───
+          if (ticket.esApartado) ...[
+            Text('ABONOS', style: boldReceipt),
+            const SizedBox(height: 2),
+            for (var n = 0; n < ticket.abonos!.length; n++)
+              _PayRow(
+                '${n + 1}. ${DateFormat('dd/MM/yy HH:mm', 'es_MX').format(ticket.abonos![n].fecha)} ${ticket.abonos![n].metodoPago}',
+                '\$${formatPrice(ticket.abonos![n].monto)}',
+                receiptFont.copyWith(fontSize: 12),
+              ),
+            if (ticket.abonos!.isEmpty) Text('  (sin abonos)', style: smallReceipt),
+            _Separator(),
+            _PayRow(
+              'Abonado:',
+              '\$${formatPrice(ticket.abonos!.fold<double>(0, (s, a) => s + a.monto))}',
+              receiptFont,
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('SALDO:', style: boldReceipt.copyWith(fontSize: 15)),
+                Text(
+                  '\$${formatPrice(ticket.saldo ?? (ticket.total - ticket.abonos!.fold<double>(0, (s, a) => s + a.monto)))}',
+                  style: boldReceipt.copyWith(fontSize: 15, color: Colors.red.shade700),
+                ),
+              ],
+            ),
+            if (ticket.inversionistaNombre != null) ...[
+              const SizedBox(height: 4),
+              Text('Cuenta: ${ticket.inversionistaNombre}', style: smallReceipt),
+            ],
+          ] else ...[
+            Text('Pago: ${ticket.metodoPago}', style: receiptFont),
+            if (ticket.montoTarjeta != null && ticket.montoTarjeta! > 0)
+              _PayRow('Tarjeta:', '\$${formatPrice(ticket.montoTarjeta!)}',
+                  receiptFont),
+            if (ticket.montoRecibido != null && ticket.montoRecibido! > 0)
+              _PayRow('Recibido:', '\$${formatPrice(ticket.montoRecibido!)}',
+                  receiptFont),
+            if (ticket.cambio != null && ticket.cambio! >= 0)
+              _PayRow('Cambio:', '\$${formatPrice(ticket.cambio!)}', boldReceipt,
+                  color: Colors.green.shade700),
+            if (ticket.inversionistaNombre != null) ...[
+              const SizedBox(height: 4),
+              Text('Cuenta: ${ticket.inversionistaNombre}',
+                  style: smallReceipt),
+            ],
           ],
           _Separator(dashed: false),
 
@@ -275,6 +309,10 @@ class _BottomBarState extends State<_BottomBar> {
   String? _clienteNombre;
 
   Future<void> _onPrint() async {
+    if (widget.ticket.esApartado) {
+      TicketPrintService.showPrinterPicker(context, widget.ticket);
+      return;
+    }
     final nombre = await showDialog<String?>(
       context: context,
       builder: (ctx) => _CustomerNameDialog(initialValue: _clienteNombre),

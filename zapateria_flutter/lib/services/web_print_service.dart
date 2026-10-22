@@ -46,6 +46,9 @@ class WebPrintService {
 ''');
 
     // Header
+    if (ticket.esApartado) {
+      sb.write('<p class="center bold">TICKET DE APARTADO</p>\n');
+    }
     sb.write('<p class="center bold">${_e(kBusinessName)}</p>\n');
     sb.write('<p class="center">${_e(kBusinessAddr1)}</p>\n');
     sb.write('<p class="center">${_e(kBusinessAddr2)}</p>\n');
@@ -55,6 +58,12 @@ class WebPrintService {
     // Folio + fecha
     sb.write('<p>TICKET: ${_e(ticket.folio)}</p>\n');
     sb.write('<p>Fecha: ${_e(dateStr)}</p>\n');
+    if (ticket.clienteNombre != null && ticket.clienteNombre!.isNotEmpty) {
+      sb.write('<p>Cliente: ${_e(ticket.clienteNombre!)}</p>\n');
+    }
+    if (ticket.clienteTelefono != null && ticket.clienteTelefono!.isNotEmpty) {
+      sb.write('<p>Tel: ${_e(ticket.clienteTelefono!)}</p>\n');
+    }
     sb.write('<hr>\n');
 
     // Items
@@ -91,23 +100,52 @@ class WebPrintService {
       '</p>\n',
     );
 
-    // Pago
-    sb.write('<hr>\n');
-    sb.write('<p>Pago: ${_e(ticket.metodoPago)}</p>\n');
-    if (ticket.montoTarjeta != null && ticket.montoTarjeta! > 0) {
+    if (ticket.esApartado) {
+      sb.write('<hr>\n<p class="bold">ABONOS</p>\n');
+      var n = 1;
+      var abonado = 0.0;
+      for (final a in ticket.abonos!) {
+        abonado += a.monto;
+        final f = DateFormat('dd/MM/yy HH:mm', 'es_MX').format(a.fecha);
+        sb.write(
+          '<p class="indent row">'
+          '<span>$n. ${_e(f)} ${_e(a.metodoPago)}</span>'
+          '<span>\$${_e(formatPrice(a.monto))}</span>'
+          '</p>\n',
+        );
+        n++;
+      }
+      sb.write('<hr>\n');
       sb.write(
-          '<p class="indent">Tarjeta: \$${_e(formatPrice(ticket.montoTarjeta!))}</p>\n');
-    }
-    if (ticket.montoRecibido != null && ticket.montoRecibido! > 0) {
+        '<p class="row"><span>ABONADO:</span>'
+        '<span>\$${_e(formatPrice(abonado))}</span></p>\n',
+      );
       sb.write(
-          '<p class="indent">Recibido: \$${_e(formatPrice(ticket.montoRecibido!))}</p>\n');
-    }
-    if (ticket.cambio != null && ticket.cambio! >= 0) {
-      sb.write(
-          '<p class="indent">Cambio: \$${_e(formatPrice(ticket.cambio!))}</p>\n');
-    }
-    if (ticket.inversionistaNombre != null) {
-      sb.write('<p>Cuenta: ${_e(ticket.inversionistaNombre!)}</p>\n');
+        '<p class="bold row"><span>SALDO:</span>'
+        '<span>\$${_e(formatPrice(ticket.saldo ?? (ticket.total - abonado)))}</span></p>\n',
+      );
+      if (ticket.inversionistaNombre != null) {
+        sb.write('<p>Cuenta: ${_e(ticket.inversionistaNombre!)}</p>\n');
+      }
+    } else {
+      // Pago
+      sb.write('<hr>\n');
+      sb.write('<p>Pago: ${_e(ticket.metodoPago)}</p>\n');
+      if (ticket.montoTarjeta != null && ticket.montoTarjeta! > 0) {
+        sb.write(
+            '<p class="indent">Tarjeta: \$${_e(formatPrice(ticket.montoTarjeta!))}</p>\n');
+      }
+      if (ticket.montoRecibido != null && ticket.montoRecibido! > 0) {
+        sb.write(
+            '<p class="indent">Recibido: \$${_e(formatPrice(ticket.montoRecibido!))}</p>\n');
+      }
+      if (ticket.cambio != null && ticket.cambio! >= 0) {
+        sb.write(
+            '<p class="indent">Cambio: \$${_e(formatPrice(ticket.cambio!))}</p>\n');
+      }
+      if (ticket.inversionistaNombre != null) {
+        sb.write('<p>Cuenta: ${_e(ticket.inversionistaNombre!)}</p>\n');
+      }
     }
 
     // Folio as text display

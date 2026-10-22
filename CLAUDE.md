@@ -58,6 +58,7 @@ Standard NestJS feature-module layout. Each domain has its own folder with `modu
 - `inventario/` — stock per (zapato, color, talla); separate from zapato for fine-grained control
 - `venta/` — sales + items; `create` decrements inventory and computes `total` server-side
 - `inversionista/` — consignment partners (investors); each zapato and venta can be tied to one
+- `apartado/` — layaway: `apartados` + `apartado_items` + `abonos` (efectivo/tarjeta). `create` descuenta inventario, `entregar` exige saldo 0 y genera la `Venta` (montoTarjeta = Σ abonos con tarjeta; sin volver a descontar stock), `cancelar` devuelve stock. Todo en transacciones. El dinero entra al cierre de caja hasta la entrega.
 - `categoria/` — shoe categories
 - `color/` — colors (solid or combo with `primaryColor`/`secondaryColor`)
 - `upload/` — Multer file upload, saves to `uploads/zapatos/`; static assets served at `/uploads/`
@@ -72,7 +73,7 @@ Standard NestJS feature-module layout. Each domain has its own folder with `modu
 - `CartProvider` — cart items, `TipoPrecio`, `MetodoPago`, `montoTarjeta`
 - `ThemeProvider` — light/dark mode
 
-**Navigation**: `MainShell` uses `IndexedStack` — `BottomNavigationBar` on mobile, `NavigationRail` on web. Screens (indices 0–6): Zapatos, Ventas, Carrito, Escanear, Cierre, Inversionistas, Categorías.
+**Navigation**: `MainShell` uses `IndexedStack` — `BottomNavigationBar` on mobile, `NavigationRail` on web. Screens (indices 0–7): Zapatos, Ventas, Carrito, Escanear, Cierre, Inversionistas, Categorías, Apartados.
 
 **HTTP**: `ApiClient` (singleton `apiClient`) wraps Dio. Base URL:
 - Web: `/api` (nginx proxy in Docker)

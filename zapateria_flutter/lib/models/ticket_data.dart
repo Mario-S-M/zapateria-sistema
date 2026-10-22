@@ -18,6 +18,14 @@ class TicketItem {
   double get subtotal => precioUnitario * cantidad;
 }
 
+class TicketAbono {
+  final DateTime fecha;
+  final double monto;
+  final String metodoPago;
+
+  const TicketAbono({required this.fecha, required this.monto, required this.metodoPago});
+}
+
 class TicketData {
   final String folio;
   final DateTime fecha;
@@ -30,6 +38,13 @@ class TicketData {
   final String tipoPrecio;
   final String? inversionistaNombre;
   final String? clienteNombre;
+  final String? clienteTelefono;
+
+  /// Si no es null, el ticket es de un apartado (con histórico de abonos).
+  final List<TicketAbono>? abonos;
+  final double? saldo;
+
+  bool get esApartado => abonos != null;
 
   const TicketData({
     required this.folio,
@@ -43,6 +58,9 @@ class TicketData {
     required this.tipoPrecio,
     this.inversionistaNombre,
     this.clienteNombre,
+    this.clienteTelefono,
+    this.abonos,
+    this.saldo,
   });
 
   TicketData copyWith({String? clienteNombre}) => TicketData(
@@ -57,5 +75,8 @@ class TicketData {
         tipoPrecio: tipoPrecio,
         inversionistaNombre: inversionistaNombre,
         clienteNombre: clienteNombre ?? this.clienteNombre,
+        clienteTelefono: clienteTelefono,
+        abonos: abonos,
+        saldo: saldo,
       );
 }
