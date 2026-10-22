@@ -1,0 +1,39 @@
+name: Deploy a Raspberry
+
+# Compila en la Mac (runner propio, linux/arm64) y despliega en la Pi por SSH.
+# Solo push a main: un runner propio nunca debe ejecutar código de PRs ni forks.
+# Lógica de build/deploy: scripts/deploy-pi.sh
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - ".gitignore"
+      - ".github/workflows/kanban-*.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-raspberry
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, macOS, ARM64]
+    timeout-minutes: 40
+    env:
+      PI: ${{ vars.DEPLOY_USER || 'rasp' }}@${{ vars.DEPLOY_HOST || 'raspberrypi.local' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preparar PATH (Docker y Flutter)
+        run: |
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
+          echo "$HOME/flutter/bin" >> "$GITHUB_PATH"
+
+      - name: Verificar Docker y acceso SSH a la Pi
+        run: |
+          docker info --format '{{.ServerVersion}}'
+          ssh -o BatchMode=yes -o ConnectTimeout=10 "$PI" 'echo conectado a $(hostname)'
+
+      - name: Build y deploy
+        run: ./scripts/deploy-pi.sh
