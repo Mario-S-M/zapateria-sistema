@@ -12,6 +12,7 @@ import 'package:zapateria_flutter/models/ticket_data.dart';
 import 'package:zapateria_flutter/utils/price_utils.dart';
 import 'esc_pos.dart';
 import 'web_print_service.dart' if (dart.library.io) 'web_print_service_stub.dart';
+import 'package:zapateria_flutter/utils/phone_utils.dart';
 
 class TicketPrintService {
   TicketPrintService._();
@@ -164,7 +165,7 @@ class TicketPrintService {
       addLine('Cliente: ${ticket.clienteNombre}', align: EscPos.alignCenter);
     }
     if (ticket.clienteTelefono != null && ticket.clienteTelefono!.isNotEmpty) {
-      addLine('Tel: ${ticket.clienteTelefono}', align: EscPos.alignCenter);
+      addLine('Tel: ${formatTelefono(ticket.clienteTelefono!)}', align: EscPos.alignCenter);
     }
     addLine(dash);
 

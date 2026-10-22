@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:zapateria_flutter/config/business_config.dart';
 import 'package:zapateria_flutter/models/ticket_data.dart';
 import 'package:zapateria_flutter/utils/price_utils.dart';
+import 'package:zapateria_flutter/utils/phone_utils.dart';
 
 @JS('flutterPrintTicket')
 external void _flutterPrintTicket(String htmlContent);
@@ -62,7 +63,7 @@ class WebPrintService {
       sb.write('<p>Cliente: ${_e(ticket.clienteNombre!)}</p>\n');
     }
     if (ticket.clienteTelefono != null && ticket.clienteTelefono!.isNotEmpty) {
-      sb.write('<p>Tel: ${_e(ticket.clienteTelefono!)}</p>\n');
+      sb.write('<p>Tel: ${_e(formatTelefono(ticket.clienteTelefono!))}</p>\n');
     }
     sb.write('<hr>\n');
 

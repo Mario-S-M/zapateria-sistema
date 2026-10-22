@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:zapateria_flutter/models/models.dart';
+import 'package:zapateria_flutter/utils/phone_utils.dart';
 import 'package:zapateria_flutter/utils/price_utils.dart';
 
 class NuevoApartadoData {
@@ -98,7 +99,7 @@ class _ApartadoFormState extends State<_ApartadoForm> {
     if (widget.soloAbono) {
       Navigator.pop(context, AbonoData(_montoValue, _metodo));
     } else {
-      final tel = _telefono.text.trim();
+      final tel = soloDigitos(_telefono.text);
       Navigator.pop(
         context,
         NuevoApartadoData(
@@ -144,7 +145,12 @@ class _ApartadoFormState extends State<_ApartadoForm> {
               TextFormField(
                 controller: _telefono,
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'Teléfono (opcional)'),
+                inputFormatters: [TelefonoInputFormatter()],
+                decoration: const InputDecoration(
+                  labelText: 'Teléfono (opcional)',
+                  hintText: '55-12-34-56-78',
+                ),
+                validator: validateTelefono,
               ),
               const SizedBox(height: 12),
             ],

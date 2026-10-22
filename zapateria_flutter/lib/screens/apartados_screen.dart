@@ -8,6 +8,7 @@ import 'package:zapateria_flutter/models/ticket_data.dart';
 import 'package:zapateria_flutter/screens/ticket_screen.dart';
 import 'package:zapateria_flutter/services/apartado_service.dart';
 import 'package:zapateria_flutter/utils/price_utils.dart';
+import 'package:zapateria_flutter/utils/phone_utils.dart';
 
 /// Arma el ticket de un apartado con su histórico de abonos.
 TicketData ticketFromApartado(ApartadoModel a) {
@@ -337,7 +338,7 @@ class _ApartadoCard extends StatelessWidget {
                 child: Row(children: [
                   const Icon(Icons.phone, size: 16),
                   const SizedBox(width: 6),
-                  Text(a.clienteTelefono!),
+                  Text(formatTelefono(a.clienteTelefono!)),
                 ]),
               ),
             for (final i in a.items)

@@ -5,6 +5,7 @@ import 'package:zapateria_flutter/config/business_config.dart';
 import 'package:zapateria_flutter/models/ticket_data.dart';
 import 'package:zapateria_flutter/services/ticket_print_service.dart';
 import 'package:zapateria_flutter/utils/price_utils.dart';
+import 'package:zapateria_flutter/utils/phone_utils.dart';
 
 class TicketScreen extends StatelessWidget {
   final TicketData ticket;
@@ -91,7 +92,7 @@ class _ReceiptCard extends StatelessWidget {
           if (ticket.clienteNombre != null && ticket.clienteNombre!.isNotEmpty)
             Text('Cliente: ${ticket.clienteNombre}', style: receiptFont, textAlign: TextAlign.center),
           if (ticket.clienteTelefono != null && ticket.clienteTelefono!.isNotEmpty)
-            Text('Tel: ${ticket.clienteTelefono}', style: receiptFont, textAlign: TextAlign.center),
+            Text('Tel: ${formatTelefono(ticket.clienteTelefono!)}', style: receiptFont, textAlign: TextAlign.center),
           _Separator(),
 
           // ── Items ─────────────────────────────────────────

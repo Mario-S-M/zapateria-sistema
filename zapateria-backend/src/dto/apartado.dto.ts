@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsEnum,
   IsNotEmpty,
+  Matches,
   Min,
   ValidateNested,
   ArrayMinSize,
@@ -35,11 +36,15 @@ export class CreateApartadoDto {
   @IsNotEmpty({ message: 'El nombre del cliente es requerido' })
   clienteNombre: string;
 
+  // Se guarda solo con dígitos: cualquier guion o espacio se descarta.
   @IsOptional()
-  @Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' && value.trim() === '' ? undefined : value,
-  )
+  @Transform(({ value }: { value: unknown }) => {
+    if (typeof value !== 'string') return value;
+    const digitos = value.replace(/\D/g, '');
+    return digitos === '' ? undefined : digitos;
+  })
   @IsString()
+  @Matches(/^\d{10}$/, { message: 'El teléfono debe tener 10 dígitos' })
   clienteTelefono?: string;
 
   @IsEnum(TipoPrecio)
