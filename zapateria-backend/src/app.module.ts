@@ -12,6 +12,7 @@ import { CategoriaModule } from './categoria/categoria.module';
 import { InventarioModule } from './inventario/inventario.module';
 import { MarcaModule } from './marca/marca.module';
 import { ApartadoModule } from './apartado/apartado.module';
+import { AgenteModule } from './agente/agente.module';
 import { Color } from './entities/color.entity';
 import { Zapato } from './entities/zapato.entity';
 import { ZapatoColor } from './entities/zapato-color.entity';
@@ -72,6 +73,7 @@ import { Abono } from './entities/abono.entity';
     InventarioModule,
     MarcaModule,
     ApartadoModule,
+    AgenteModule,
   ],
   controllers: [AppController],
   providers: [AppService],
