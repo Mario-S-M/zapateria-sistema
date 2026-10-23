@@ -72,9 +72,9 @@ type SesionResponse =
 // Client tool "mostrar_recomendaciones" (la invoca el agente en la app)
 type MostrarRecomendacionesParams = {
   talla: number;
-  categoriaId?: string;   // solo si el cliente la dijo (ej. escolar)
-  colorId?: string;
-  zapatoIdsRecomendados: string[];  // orden de preferencia
+  zapato_ids: string;     // ids separados por comas, orden de preferencia (ElevenLabs no admite arreglos)
+  categoria_id?: string;  // solo si el cliente la dijo (ej. escolar)
+  color_id?: string;
 };
 ```
 
@@ -160,7 +160,9 @@ Convenciones:
   - Endpoints del backend: `GET /v1/convai/conversation/token?agent_id=` (WebRTC, voz) y `GET /v1/convai/conversation/get-signed-url?agent_id=` (WebSocket, texto), ambos con `xi-api-key`.
   - SDK JS (`@elevenlabs/client`): `Conversation.startSession({ conversationToken | signedUrl, clientTools })`; voz usa WebRTC, texto usa WebSocket por defecto.
   - **Implicación:** la voz en web también usa `conversationToken` (WebRTC), no `signedUrl`. El contrato `SesionResponse` del Data model (web → `signedUrl`) probablemente deba devolver `conversationToken` para voz y opcionalmente `signedUrl` para texto.
-  - **No verificado (requiere `ELEVENLABS_API_KEY` y un agente de prueba):** si el SDK de Flutter corre en web, si `/token` sirve también para sesiones solo texto, y la sesión real en Chrome y en Android. Pendiente hasta tener la cuenta.
+  - **Verificado el 2026-10-22 (paso 6):** una sesión de texto por `signedUrl` (WebSocket) contra el agente real funciona con `conversation_config_override.conversation.text_only = true` (el agente lo permite en `platform_settings.overrides`). El agente pregunta primero la talla, consulta `buscar_inventario_por_talla` por el túnel MCP, no pregunta categoría y dispara el client tool `mostrar_recomendaciones` con ids reales.
+  - MCP en ElevenLabs viene desactivado por defecto por workspace y se habilita aceptando los términos al añadir el primer servidor. No requirió plan de pago.
+  - **Sigue sin verificar** (se cierra en los pasos 9 y 10): la voz real en Chrome y en Android, y si el SDK de Flutter corre en web. Las sesiones de voz usan `conversationToken`.
 - **No:** tools de escritura para el agente. Riesgo de que una conversación mal interpretada modifique stock o ventas.
 - **No:** línea de "motivo" por zapato. No se eligió; entra en otro spec si hace falta.
 - **No:** guardar transcripciones en la base de datos. Ya quedan en ElevenLabs.

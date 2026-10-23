@@ -782,6 +782,95 @@ class InventarioItemModel {
 }
 
 
+// Respuesta de GET /agente/inventario?talla=: el stock real de UNA talla,
+// agrupado por zapato y color (solo variantes con cantidad > 0).
+class VarianteTallaModel {
+  final String? colorId;
+  final String? color;
+  final int cantidad;
+
+  VarianteTallaModel({this.colorId, this.color, required this.cantidad});
+
+  factory VarianteTallaModel.fromJson(Map<String, dynamic> json) {
+    return VarianteTallaModel(
+      colorId: json['colorId'] as String?,
+      color: json['color'] as String?,
+      cantidad: (json['cantidad'] as num).toInt(),
+    );
+  }
+}
+
+class InventarioTallaItemModel {
+  final String zapatoId;
+  final String nombre;
+  final String modelo;
+  final String foto;
+  final String? categoriaId;
+  final String? categoria;
+  // Ya resuelto por el backend para la talla consultada (rango o precio plano).
+  final double precioPublico;
+  final List<VarianteTallaModel> variantes;
+
+  InventarioTallaItemModel({
+    required this.zapatoId,
+    required this.nombre,
+    required this.modelo,
+    required this.foto,
+    this.categoriaId,
+    this.categoria,
+    required this.precioPublico,
+    required this.variantes,
+  });
+
+  factory InventarioTallaItemModel.fromJson(Map<String, dynamic> json) {
+    return InventarioTallaItemModel(
+      zapatoId: json['zapatoId'] as String,
+      nombre: json['nombre'] as String,
+      modelo: json['modelo'] as String,
+      foto: json['foto'] as String,
+      categoriaId: json['categoriaId'] as String?,
+      categoria: json['categoria'] as String?,
+      precioPublico: double.parse(json['precioPublico'].toString()),
+      variantes: (json['variantes'] as List? ?? [])
+          .map((v) => VarianteTallaModel.fromJson(v as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+class InventarioTallaModel {
+  final double talla;
+  final List<InventarioTallaItemModel> items;
+
+  InventarioTallaModel({required this.talla, required this.items});
+
+  factory InventarioTallaModel.fromJson(Map<String, dynamic> json) {
+    return InventarioTallaModel(
+      talla: double.parse(json['talla'].toString()),
+      items: (json['items'] as List? ?? [])
+          .map((j) => InventarioTallaItemModel.fromJson(j as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+// Respuesta de POST /agente/sesion. En móvil solo viene conversationToken
+// (voz y texto por WebRTC); en web también signedUrl (texto por WebSocket).
+class SesionAgenteModel {
+  final String conversationToken;
+  final String? signedUrl;
+
+  SesionAgenteModel({required this.conversationToken, this.signedUrl});
+
+  factory SesionAgenteModel.fromJson(Map<String, dynamic> json) {
+    return SesionAgenteModel(
+      conversationToken: json['conversationToken'] as String,
+      signedUrl: json['signedUrl'] as String?,
+    );
+  }
+}
+
+
 enum EstadoApartado { activo, entregado, cancelado }
 
 enum MetodoAbono { efectivo, tarjeta }
