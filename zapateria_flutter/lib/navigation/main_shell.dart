@@ -9,6 +9,7 @@ import 'package:zapateria_flutter/screens/cierre_caja_screen.dart';
 import 'package:zapateria_flutter/screens/inversionistas_screen.dart';
 import 'package:zapateria_flutter/screens/categorias_screen.dart';
 import 'package:zapateria_flutter/screens/apartados_screen.dart';
+import 'package:zapateria_flutter/screens/asesor_screen.dart';
 import 'package:zapateria_flutter/services/update_service.dart';
 
 class MainShell extends StatefulWidget {
@@ -29,6 +30,9 @@ class _MainShellState extends State<MainShell> {
     });
   }
 
+  static const _asesorIndex = 8;
+
+  // Las pantallas fijas; Asesor se agrega en [_pagesActuales] porque necesita saber si está visible.
   final _pages = [
     const ZapatosScreen(),
     const VentasScreen(),
@@ -49,6 +53,7 @@ class _MainShellState extends State<MainShell> {
     Icons.people,
     Icons.category,
     Icons.bookmark_added,
+    Icons.support_agent,
   ];
 
   static const _labels = [
@@ -60,7 +65,13 @@ class _MainShellState extends State<MainShell> {
     'Inversionistas',
     'Categorías',
     'Apartados',
+    'Asesor',
   ];
+
+  List<Widget> get _pagesActuales => [
+        ..._pages,
+        AsesorScreen(activo: _currentIndex == _asesorIndex),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +119,7 @@ class _MainShellState extends State<MainShell> {
             Expanded(
               child: IndexedStack(
                 index: _currentIndex,
-                children: _pages,
+                children: _pagesActuales,
               ),
             ),
           ],
@@ -119,7 +130,7 @@ class _MainShellState extends State<MainShell> {
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: _pages,
+        children: _pagesActuales,
       ),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(12, 0, 12, 10),

@@ -65,9 +65,11 @@ type InventarioTallaResponse = {
 };
 
 // POST /agente/sesion  body: { plataforma: 'web' | 'movil' }
-type SesionResponse =
-  | { plataforma: 'movil'; conversationToken: string }
-  | { plataforma: 'web'; conversationToken: string; signedUrl: string }; // token: voz (WebRTC); signedUrl: texto (WebSocket)
+type SesionResponse = {
+  plataforma: 'web' | 'movil';
+  conversationToken: string; // voz (WebRTC)
+  signedUrl: string;         // solo texto (WebSocket), no usa micrófono
+};
 
 // Client tool "mostrar_recomendaciones" (la invoca el agente en la app)
 type MostrarRecomendacionesParams = {
@@ -107,8 +109,8 @@ Convenciones:
 6. **Agente en ElevenLabs.** Escribir `zapateria-backend/src/agente/agent-prompt.md`, crear el agente, registrar el servidor MCP (secreto como workspace secret) y el client tool `mostrar_recomendaciones`. Prueba: en el probador del dashboard, "Hola, necesito un calzado para niños" produce una pregunta de talla.
 7. **Flutter: modelos y servicio.** Agregar `InventarioTallaModel` en `lib/models/models.dart` y `lib/services/agente_service.dart` (sesión + inventario por talla). Prueba: llamada desde un test de widget o `flutter run` imprime los items.
 8. **Flutter: pantalla de recomendaciones.** `lib/screens/recomendaciones_screen.dart` recibiendo talla, color y ids; tarjetas con foto, precio y "Agregar al carrito" (`CartProvider.addItem`). Prueba: abrir con parámetros fijos y agregar al carrito.
-9. **Flutter: cliente web con voz y texto.** `lib/services/agente_client.dart` (interfaz), `agente_client_web.dart` (opción validada en el spike, con signed URL) y `agente_client_stub.dart` con import condicional, igual que `web_print_service`. Prueba: `flutter run -d chrome`, el agente responde por texto y por voz con permiso de micrófono.
-10. **Flutter: cliente móvil con SDK.** Agregar `elevenlabs_agents` a `pubspec.yaml`, `agente_client_mobile.dart` con voz y texto, permiso de micrófono en `AndroidManifest.xml` e `Info.plist`. Prueba: conversación hablada en un Android.
+9. **Flutter: cliente común con voz y texto.** `lib/services/agente_client.dart` (un solo `AgenteClient` para web y móvil: voz con el SDK `elevenlabs_agents`, solo texto con `lib/services/agente_texto_ws.dart` por WebSocket, y respaldo automático a texto si la voz no arranca). Prueba: página de prueba en Chrome, conversación por voz y por texto, con y sin permiso de micrófono. _(Cambió respecto al plan original: el spike mostró que el SDK corre en web, así que no hay `agente_client_web.dart` ni JS interop; ver Decisiones.)_
+10. **Flutter: permisos y prueba en móvil.** Permiso de micrófono en `AndroidManifest.xml` e `Info.plist` (y `minSdkVersion 21` / iOS 13). Prueba: conversación hablada y por texto en un Android físico.
 11. **Flutter: pantalla Asesor y navegación.** `lib/screens/asesor_screen.dart`, entrada "Asesor" en `MainShell` (índice 8), registro del client tool para abrir `RecomendacionesScreen` y botón manual "Ver recomendaciones" (pide la talla si el agente aún no la tiene). Prueba: flujo completo del caso "calzado para niños".
 
 ---
@@ -120,7 +122,8 @@ Convenciones:
 - [ ] `POST /mcp` sin header `X-MCP-Secret` o con secreto incorrecto responde 401.
 - [ ] `POST /mcp` con secreto correcto lista exactamente `buscar_inventario_por_talla`, `listar_categorias` y `listar_colores`.
 - [ ] Ninguna tool MCP modifica filas (no hay `save`, `update` ni `delete` en `mcp.controller.ts`).
-- [ ] `POST /agente/sesion` con `plataforma: 'movil'` devuelve `conversationToken`; con `'web'` devuelve `conversationToken` y `signedUrl`.
+- [ ] `POST /agente/sesion` devuelve `conversationToken` y `signedUrl` para `plataforma: 'movil'` y para `'web'`.
+- [ ] En web sin permiso de micrófono, el modo texto funciona y el modo voz cae a texto con un aviso.
 - [ ] `ELEVENLABS_API_KEY` no aparece en el bundle web (`build/web`) ni en el APK (búsqueda de texto).
 - [ ] La URL pública del túnel responde 401 en `/mcp` sin secreto.
 - [ ] En web, el vendedor escribe "Hola, necesito un calzado para niños" y recibe respuesta del agente por texto.
@@ -163,6 +166,10 @@ Convenciones:
   - **Verificado el 2026-10-22 (paso 6):** una sesión de texto por `signedUrl` (WebSocket) contra el agente real funciona con `conversation_config_override.conversation.text_only = true` (el agente lo permite en `platform_settings.overrides`). El agente pregunta primero la talla, consulta `buscar_inventario_por_talla` por el túnel MCP, no pregunta categoría y dispara el client tool `mostrar_recomendaciones` con ids reales.
   - MCP en ElevenLabs viene desactivado por defecto por workspace y se habilita aceptando los términos al añadir el primer servidor. No requirió plan de pago.
   - **Sigue sin verificar** (se cierra en los pasos 9 y 10): la voz real en Chrome y en Android, y si el SDK de Flutter corre en web. Las sesiones de voz usan `conversationToken`.
+- **Sí:** un solo `AgenteClient` para web y móvil, con el SDK `elevenlabs_agents` para voz. Verificado en Chrome (2026-10-22): sesión por `conversationToken`, micrófono, primer mensaje, conversación completa y client tool disparado en la app. Evita JS interop y un cliente web aparte.
+- **Sí:** el modo solo texto va por WebSocket (`signedUrl`) y no por el SDK, porque el SDK **siempre** activa el micrófono al conectar (aunque la sesión sea `text_only`) y, si falla el permiso o no hay micrófono, aborta la sesión. Una PC de mostrador sin micrófono no podría usar el asesor ni escribiendo. Si la voz no arranca en 25 s o falla, se cae a texto automáticamente.
+- **Sí:** el prompt prohíbe pasar `categoria_id` salvo que el cliente nombre el tipo de calzado; en pruebas el agente lo mandaba deducido de "cerrado" y habría escondido el resto de la talla. Con la regla apretada, 3 de 3 corridas lo omitieron.
+- **No:** `agente_client_web.dart` ni JS interop (`@elevenlabs/client`). Innecesario tras el spike.
 - **No:** tools de escritura para el agente. Riesgo de que una conversación mal interpretada modifique stock o ventas.
 - **No:** línea de "motivo" por zapato. No se eligió; entra en otro spec si hace falta.
 - **No:** guardar transcripciones en la base de datos. Ya quedan en ElevenLabs.

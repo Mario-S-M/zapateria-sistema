@@ -854,18 +854,18 @@ class InventarioTallaModel {
   }
 }
 
-// Respuesta de POST /agente/sesion. En móvil solo viene conversationToken
-// (voz y texto por WebRTC); en web también signedUrl (texto por WebSocket).
+// Respuesta de POST /agente/sesion: conversationToken abre la sesión de voz
+// (WebRTC) y signedUrl la de solo texto (WebSocket, sin micrófono).
 class SesionAgenteModel {
   final String conversationToken;
-  final String? signedUrl;
+  final String signedUrl;
 
-  SesionAgenteModel({required this.conversationToken, this.signedUrl});
+  SesionAgenteModel({required this.conversationToken, required this.signedUrl});
 
   factory SesionAgenteModel.fromJson(Map<String, dynamic> json) {
     return SesionAgenteModel(
       conversationToken: json['conversationToken'] as String,
-      signedUrl: json['signedUrl'] as String?,
+      signedUrl: json['signedUrl'] as String,
     );
   }
 }

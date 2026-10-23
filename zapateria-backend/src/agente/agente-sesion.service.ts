@@ -9,9 +9,11 @@ import { PlataformaAgente } from '../dto/agente.dto';
 const ELEVENLABS_API = 'https://api.elevenlabs.io/v1/convai/conversation';
 const TIMEOUT_MS = 10000;
 
-export type SesionAgenteResponse =
-  | { plataforma: 'movil'; conversationToken: string }
-  | { plataforma: 'web'; conversationToken: string; signedUrl: string };
+export interface SesionAgenteResponse {
+  plataforma: PlataformaAgente;
+  conversationToken: string;
+  signedUrl: string;
+}
 
 @Injectable()
 export class AgenteSesionService {
@@ -28,11 +30,8 @@ export class AgenteSesionService {
       );
     }
 
-    // El token (WebRTC) sirve para voz en móvil y web; la signed URL (WebSocket) para texto en web.
-    if (plataforma === 'movil') {
-      const conversationToken = await this.pedirToken(apiKey, agentId);
-      return { plataforma, conversationToken };
-    }
+    // El token (WebRTC) abre la sesión de voz; la signed URL (WebSocket) la de solo texto,
+    // que no necesita micrófono. Ambas plataformas reciben las dos.
     const [conversationToken, signedUrl] = await Promise.all([
       this.pedirToken(apiKey, agentId),
       this.pedirSignedUrl(apiKey, agentId),

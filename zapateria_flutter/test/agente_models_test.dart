@@ -36,18 +36,13 @@ void main() {
     expect(model.items, isEmpty);
   });
 
-  test('SesionAgenteModel: móvil sin signedUrl, web con signedUrl', () {
-    final movil = SesionAgenteModel.fromJson({
+  test('SesionAgenteModel trae token de voz y signedUrl de texto', () {
+    final sesion = SesionAgenteModel.fromJson({
       'plataforma': 'movil',
-      'conversationToken': 'tok',
-    });
-    expect(movil.signedUrl, isNull);
-
-    final web = SesionAgenteModel.fromJson({
-      'plataforma': 'web',
       'conversationToken': 'tok',
       'signedUrl': 'wss://x',
     });
-    expect(web.signedUrl, 'wss://x');
+    expect(sesion.conversationToken, 'tok');
+    expect(sesion.signedUrl, 'wss://x');
   });
 }
