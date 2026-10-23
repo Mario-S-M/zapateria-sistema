@@ -28,3 +28,6 @@ graphify-out/
 
 # Claude Code local permissions (machine-specific, may contain local IPs/hosts)
 .claude/settings.local.json
+
+# Capturas/snapshots de Playwright MCP (pueden contener tokens)
+.playwright-mcp/
