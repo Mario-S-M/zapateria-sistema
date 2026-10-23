@@ -67,7 +67,7 @@ type InventarioTallaResponse = {
 // POST /agente/sesion  body: { plataforma: 'web' | 'movil' }
 type SesionResponse =
   | { plataforma: 'movil'; conversationToken: string }
-  | { plataforma: 'web'; signedUrl: string };
+  | { plataforma: 'web'; conversationToken: string; signedUrl: string }; // token: voz (WebRTC); signedUrl: texto (WebSocket)
 
 // Client tool "mostrar_recomendaciones" (la invoca el agente en la app)
 type MostrarRecomendacionesParams = {
@@ -120,7 +120,7 @@ Convenciones:
 - [ ] `POST /mcp` sin header `X-MCP-Secret` o con secreto incorrecto responde 401.
 - [ ] `POST /mcp` con secreto correcto lista exactamente `buscar_inventario_por_talla`, `listar_categorias` y `listar_colores`.
 - [ ] Ninguna tool MCP modifica filas (no hay `save`, `update` ni `delete` en `mcp.controller.ts`).
-- [ ] `POST /agente/sesion` con `plataforma: 'movil'` devuelve `conversationToken`; con `'web'` devuelve `signedUrl`.
+- [ ] `POST /agente/sesion` con `plataforma: 'movil'` devuelve `conversationToken`; con `'web'` devuelve `conversationToken` y `signedUrl`.
 - [ ] `ELEVENLABS_API_KEY` no aparece en el bundle web (`build/web`) ni en el APK (búsqueda de texto).
 - [ ] La URL pública del túnel responde 401 en `/mcp` sin secreto.
 - [ ] En web, el vendedor escribe "Hola, necesito un calzado para niños" y recibe respuesta del agente por texto.
@@ -153,6 +153,14 @@ Convenciones:
 - **Sí:** el agente descarta con preguntas concretas basadas en lo que existe en esa talla ("¿cerrado o abierto?", "¿de qué color?"), no preguntando categoría.
 - **Sí:** la pantalla muestra todo el stock de la talla debajo de las recomendaciones. Salió de tu petición original ("de preferencia ... todo lo que tenga en inventario en ese número"), aunque no la marcaste en la lista de acciones; quítala si no la quieres.
 - **Sí:** Cloudflare Tunnel para exponer `/mcp`. No abre puertos en la red de la tienda y da URL HTTPS fija.
+- **Spike (paso 1), resultado de la documentación — 2026-10-22:**
+  - `elevenlabs_agents` 0.6.1 (Flutter) usa LiveKit/WebRTC. Plataformas documentadas: Android API 21+ e iOS 13+. pub.dev lo etiqueta también para web, pero no documenta configuración ni limitaciones web.
+  - Sesión en el SDK: `agentId` (agente público) o `conversationToken` (agente privado); `signedUrl` no aparece. Soporta `sendUserMessage` (texto) y client tools con `ConversationClient(clientTools: {...})`; el nombre debe coincidir con el configurado en el agente.
+  - Permisos móvil: `RECORD_AUDIO`, `INTERNET`, `MODIFY_AUDIO_SETTINGS` (Android); `NSMicrophoneUsageDescription` (iOS).
+  - Endpoints del backend: `GET /v1/convai/conversation/token?agent_id=` (WebRTC, voz) y `GET /v1/convai/conversation/get-signed-url?agent_id=` (WebSocket, texto), ambos con `xi-api-key`.
+  - SDK JS (`@elevenlabs/client`): `Conversation.startSession({ conversationToken | signedUrl, clientTools })`; voz usa WebRTC, texto usa WebSocket por defecto.
+  - **Implicación:** la voz en web también usa `conversationToken` (WebRTC), no `signedUrl`. El contrato `SesionResponse` del Data model (web → `signedUrl`) probablemente deba devolver `conversationToken` para voz y opcionalmente `signedUrl` para texto.
+  - **No verificado (requiere `ELEVENLABS_API_KEY` y un agente de prueba):** si el SDK de Flutter corre en web, si `/token` sirve también para sesiones solo texto, y la sesión real en Chrome y en Android. Pendiente hasta tener la cuenta.
 - **No:** tools de escritura para el agente. Riesgo de que una conversación mal interpretada modifique stock o ventas.
 - **No:** línea de "motivo" por zapato. No se eligió; entra en otro spec si hace falta.
 - **No:** guardar transcripciones en la base de datos. Ya quedan en ElevenLabs.
